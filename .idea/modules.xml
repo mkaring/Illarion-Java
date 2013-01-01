@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/illabbiwi/Illarion BBIWI.iml" filepath="$PROJECT_DIR$/illabbiwi/Illarion BBIWI.iml" />
       <module fileurl="file://$PROJECT_DIR$/illabuild/Illarion Build Utility.iml" filepath="$PROJECT_DIR$/illabuild/Illarion Build Utility.iml" />
       <module fileurl="file://$PROJECT_DIR$/illaclient/Illarion Client.iml" filepath="$PROJECT_DIR$/illaclient/Illarion Client.iml" />
       <module fileurl="file://$PROJECT_DIR$/illacommon/Illarion Common Library.iml" filepath="$PROJECT_DIR$/illacommon/Illarion Common Library.iml" />
