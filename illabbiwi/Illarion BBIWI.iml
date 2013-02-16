@@ -11,6 +11,7 @@
     <orderEntry type="library" name="Substance Look&amp;Feel" level="project" />
     <orderEntry type="library" name="SwingX" level="project" />
     <orderEntry type="library" name="log4j" level="project" />
+    <orderEntry type="library" name="JSR" level="project" />
   </component>
 </module>
 

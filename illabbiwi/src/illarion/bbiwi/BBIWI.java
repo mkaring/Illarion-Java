@@ -43,8 +43,16 @@ import java.util.logging.Level;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@SuppressWarnings("ClassNamingConvention")
 public final class BBIWI {
+    /**
+     * The title of this application.
+     */
     public static final String APPLICATION = "BBIWI Tool";
+
+    /**
+     * The server of this tool.
+     */
     public static final String VERSION = "2.0";
 
     /**
