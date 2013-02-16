@@ -32,6 +32,7 @@ public final class BanCharCmd extends AbstractCommand {
     /**
      * The character id of the character that is supposed to be banned.
      */
+    @Nonnull
     private final CharacterId charId;
 
     /**
@@ -39,6 +40,7 @@ public final class BanCharCmd extends AbstractCommand {
      * <p/>
      * TODO: Find out what one needs to smoke to come up with the idea to identify the character by ID and name.
      */
+    @Nonnull
     private final String charName;
 
     /**
@@ -60,22 +62,12 @@ public final class BanCharCmd extends AbstractCommand {
         this.time = time;
     }
 
-    /**
-     * Get the information about this object as a string.
-     *
-     * @return the data of the command as string
-     */
     @Nonnull
     @Override
     public String toString() {
         return toString(charId + " Name: " + charName + " Time: " + time);
     }
 
-    /**
-     * Encode data for transfer to server. Only for send commands.
-     *
-     * @param writer the byte buffer the values are added to from index 0 on
-     */
     @Override
     public void encode(@Nonnull final NetCommWriter writer) {
         charId.encode(writer);
