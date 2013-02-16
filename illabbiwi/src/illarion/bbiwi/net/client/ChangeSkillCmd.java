@@ -18,7 +18,7 @@
  */
 package illarion.bbiwi.net.client;
 
-import illarion.common.data.CharacterAttribute;
+import illarion.common.data.Skill;
 import illarion.common.net.NetCommWriter;
 import illarion.common.types.CharacterId;
 
@@ -26,12 +26,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 
 /**
- * This command is used to change the attribute of a single character.
+ * This command is used to change a skill of a single character.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
 @Immutable
-public final class ChangeAttributeCmd extends AbstractCommand {
+public final class ChangeSkillCmd extends AbstractCommand {
     /**
      * The character id of the character that is supposed to be changed.
      */
@@ -47,44 +47,44 @@ public final class ChangeAttributeCmd extends AbstractCommand {
     private final String charName;
 
     /**
-     * The attribute that is supposed to be changed.
+     * The skill that is supposed to be changed.
      */
     @Nonnull
-    private final CharacterAttribute attribute;
+    private final Skill skill;
 
     /**
-     * The new value of the attribute.
+     * The new value of the skill.
      */
     private final int value;
 
     /**
-     * Create a new attribute command.
+     * Create a new skill command.
      *
-     * @param charId    the ID of the character that is supposed to be changed
-     * @param charName  the name of the character that is supposed to be changed
-     * @param attribute the attribute that is supposed to be changed
-     * @param value     the new value of the attribute
+     * @param charId   the ID of the character that is supposed to be changed
+     * @param charName the name of the character that is supposed to be changed
+     * @param skill    the skill that is supposed to be changed
+     * @param value    the new value of the skill
      */
-    public ChangeAttributeCmd(@Nonnull final CharacterId charId, @Nonnull final String charName,
-                              @Nonnull final CharacterAttribute attribute, final int value) {
+    public ChangeSkillCmd(@Nonnull final CharacterId charId, @Nonnull final String charName,
+                          @Nonnull final Skill skill, final int value) {
         super(0x06);
         this.charId = charId;
         this.charName = charName;
-        this.attribute = attribute;
+        this.skill = skill;
         this.value = value;
     }
 
     @Nonnull
     @Override
     public String toString() {
-        return toString(charId + " Name: " + charName + " Attribute: " + attribute.name() + " Value: " + value);
+        return toString(charId + " Name: " + charName + " Skill: " + skill.getNameEnglish() + " Value: " + value);
     }
 
     @Override
     public void encode(@Nonnull final NetCommWriter writer) {
         charId.encode(writer);
         writer.writeString(charName);
-        writer.writeString(attribute.getServerName());
+        writer.writeUByte((short) skill.getId());
         writer.writeUShort(value);
     }
 }
