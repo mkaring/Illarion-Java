@@ -67,7 +67,7 @@ public final class ChangeSkillCmd extends AbstractCommand {
      */
     public ChangeSkillCmd(@Nonnull final CharacterId charId, @Nonnull final String charName,
                           @Nonnull final Skill skill, final int value) {
-        super(0x06);
+        super(0x07);
         this.charId = charId;
         this.charName = charName;
         this.skill = skill;
