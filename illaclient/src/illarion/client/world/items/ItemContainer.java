@@ -18,9 +18,11 @@
  */
 package illarion.client.world.items;
 
-import gnu.trove.map.hash.TIntObjectHashMap;
 import illarion.common.types.ItemCount;
 import illarion.common.types.ItemId;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * This class represents a item container that is displayed currently by the character.
@@ -29,9 +31,10 @@ import illarion.common.types.ItemId;
  */
 public final class ItemContainer {
     /**
-     * This map contains all slots that are present and filled with an item.
+     * This array stores the container slots and their items
      */
-    private final TIntObjectHashMap<ContainerSlot> slots;
+    @Nonnull
+    private final ContainerSlot[] slots;
 
     /**
      * The ID of the container.
@@ -41,11 +44,27 @@ public final class ItemContainer {
     /**
      * Create a new container with a specified ID.
      *
-     * @param id the ID of the container
+     * @param id        the ID of the container
+     * @param slotCount the amount of slots this container has
      */
-    public ItemContainer(final int id) {
+    public ItemContainer(final int id, final int slotCount) {
         containerId = id;
-        slots = new TIntObjectHashMap<ContainerSlot>();
+        slots = new ContainerSlot[slotCount];
+        for (int i = 0; i < slotCount; i++) {
+            slots[i] = new ContainerSlot(containerId, i);
+        }
+    }
+
+    /**
+     * Get a container slot that is assigned to a specified ID.
+     *
+     * @param slotId the slot ID
+     * @return the slot that is assigned to the requested id or {@code null} in case no item is applied to this slot
+     * @throws IndexOutOfBoundsException in case the {@code slotId} parameter is too small or too large
+     */
+    @Nonnull
+    public ContainerSlot getSlot(final int slotId) {
+        return slots[slotId];
     }
 
     /**
@@ -58,56 +77,32 @@ public final class ItemContainer {
     }
 
     /**
+     * Get the amount of slots this container has.
+     *
+     * @return the slot count
+     */
+    public int getSlotCount() {
+        return slots.length;
+    }
+
+    /**
      * Set or change a item in the container.
      *
      * @param slot  the slot to change
      * @param id    the ID of the new item
      * @param count the new item count
+     * @throws IndexOutOfBoundsException in case the {@code slot} parameter is too small or too large
      */
-    public void setItem(final int slot, final ItemId id, final ItemCount count) {
-        if (ItemId.isValidItem(id)) {
-            final ContainerSlot containerSlot;
-            if (slots.containsKey(slot)) {
-                containerSlot = slots.get(slot);
-            } else {
-                containerSlot = new ContainerSlot(containerId, slot);
-                slots.put(slot, containerSlot);
-            }
-            containerSlot.setData(id, count);
-        } else {
-            removeItem(slot);
+    public void setItem(final int slot, @Nullable final ItemId id, @Nullable final ItemCount count) {
+        if ((slot < 0) || (slot >= slots.length)) {
+            throw new IndexOutOfBoundsException("Requested slot outside of allowed range: " + slot);
         }
-    }
-
-    /**
-     * Remove a item from a specified slot.
-     *
-     * @param slot the slot to remove the item from
-     */
-    public void removeItem(final int slot) {
-        if (slots.containsKey(slot)) {
-            slots.remove(slot);
-        }
-    }
-
-    /**
-     * Get a container slot that is assigned to a specified ID.
-     *
-     * @param slotId the slot ID
-     * @return the slot that is assigned to the requested id
-     */
-    public ContainerSlot getSlot(final int slotId) {
-        if (slots.containsKey(slotId)) {
-            return slots.get(slotId);
+        if (ItemId.isValidItem(id) && ItemCount.isGreaterZero(count)) {
+            assert id != null;
+            assert count != null;
+            slots[slot].setData(id, count);
         } else {
-            final ContainerSlot containerSlot;
-            if (slots.containsKey(slotId)) {
-                containerSlot = slots.get(slotId);
-            } else {
-                containerSlot = new ContainerSlot(containerId, slotId);
-                slots.put(slotId, containerSlot);
-            }
-            return containerSlot;
+            slots[slot].clearSlot();
         }
     }
 }

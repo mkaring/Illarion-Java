@@ -18,38 +18,38 @@
  */
 package illarion.client.world.interactive;
 
-import illarion.client.net.CommandFactory;
-import illarion.client.net.CommandList;
 import illarion.client.net.client.*;
 import illarion.client.world.World;
+import illarion.client.world.items.ContainerSlot;
 import illarion.client.world.items.InventorySlot;
-import illarion.common.net.NetCommWriter;
+import illarion.client.world.items.MerchantList;
 import illarion.common.types.ItemCount;
 import illarion.common.types.ItemId;
+import org.apache.log4j.Logger;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 
 /**
  * This class holds the interactive representation of a inventory slot.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class InteractiveInventorySlot extends AbstractDraggable implements DropTarget, UseTarget {
-    /**
-     * The ID that is needed to tell the server that the operations refer to a slot in the inventory.
-     */
-    private static final byte REFERENCE_ID = 3;
-
+@Immutable
+public final class InteractiveInventorySlot implements Draggable, DropTarget {
     /**
      * The inventory item this interactive class refers to.
      */
+    @Nonnull
     private final InventorySlot parentItem;
 
     /**
      * Create a new instance of this interactive slot and set the inventory slot it refers to.
      *
-     * @param item the inventory item that is the parent of this interactive
-     *             item
+     * @param item the inventory item that is the parent of this interactive item
      */
-    public InteractiveInventorySlot(final InventorySlot item) {
+    public InteractiveInventorySlot(@Nonnull final InventorySlot item) {
         parentItem = item;
     }
 
@@ -57,64 +57,75 @@ public final class InteractiveInventorySlot extends AbstractDraggable implements
      * Drag a inventory item to a character. Does nothing currently.
      */
     @Override
-    public void dragTo(final InteractiveChar targetChar, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveChar targetChar, @Nonnull final ItemCount count) {
         // nothing
     }
 
     /**
+     * The logger instance that takes care for the logging output of this class.
+     */
+    private static final Logger LOGGER = Logger.getLogger(InteractiveInventorySlot.class);
+
+    /**
      * Drag the item in this inventory slot to another inventory slot.
-     *
-     * @param targetSlot the slot to drag the item to
      */
     @Override
-    public void dragTo(final InteractiveInventorySlot targetSlot, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveInventorySlot targetSlot, @Nonnull final ItemCount count) {
         if (!isValidItem()) {
+            LOGGER.error("Tried dragging a invalid item!");
+            return;
+        }
+        final ItemId draggedItem = getItemId();
+        assert draggedItem != null;
+
+        if (!targetSlot.isAcceptingItem(draggedItem)) {
             return;
         }
 
-        if (!targetSlot.acceptItem(getItemId())) {
-            return;
-        }
-
-        final DragInvInvCmd cmd =
-                CommandFactory.getInstance().getCommand(
-                        CommandList.CMD_DRAG_INV_INV, DragInvInvCmd.class);
-        cmd.setDrag(getSlotId(), targetSlot.getSlotId());
-        cmd.setCount(count);
-        cmd.send();
+        World.getNet().sendCommand(new DragInvInvCmd(getSlotId(), targetSlot.getSlotId(), count));
     }
 
+    /**
+     * Use the item in this inventory slot.
+     */
     public void use() {
         if (!isValidItem()) {
             return;
         }
 
-        final UseCmd cmd = CommandFactory.getInstance().getCommand(CommandList.CMD_USE, UseCmd.class);
-        cmd.addUse(this);
-        cmd.send();
+        World.getNet().sendCommand(new UseInventoryCmd(getSlotId()));
     }
 
+    /**
+     * Open the container in the inventory.
+     */
     public void openContainer() {
         if (!isValidItem()) {
             return;
         }
 
-        CommandFactory.getInstance().getCommand(CommandList.CMD_OPEN_BAG).send();
+        World.getNet().sendCommand(new OpenBagCmd());
     }
 
+    /**
+     * Request a look at at this inventory slot.
+     */
     public void lookAt() {
         if (!isValidItem()) {
             return;
         }
 
-        final LookatInvCmd cmd =
-                CommandFactory.getInstance().getCommand(
-                        CommandList.CMD_LOOKAT_INV, LookatInvCmd.class);
-        cmd.setSlot(this.getSlotId());
-        cmd.send();
+        World.getNet().sendCommand(new LookatInvCmd(getSlotId()));
     }
 
-    public boolean acceptItem(final ItemId itemId) {
+
+    /**
+     * Check if it is valid to drop a item on this inventory slot.
+     *
+     * @param itemId the ID of the item that should be dropped on this slot
+     * @return {@code true} in case its legal to drop a item with the specified ID on the inventory slot
+     */
+    public boolean isAcceptingItem(@Nonnull final ItemId itemId) {
         return !isValidItem() || itemId.equals(getItemId());
     }
 
@@ -125,58 +136,42 @@ public final class InteractiveInventorySlot extends AbstractDraggable implements
         if (!World.getPlayer().hasMerchantList()) {
             return;
         }
+        final MerchantList merchantList = World.getPlayer().getMerchantList();
+        assert merchantList != null;
 
-        final TradeItemCmd cmd = CommandFactory.getInstance().getCommand(CommandList.CMD_TRADE_ITEM,
-                TradeItemCmd.class);
-        cmd.setSellFromInventory(getSlotId(), parentItem.getCount());
-        cmd.setDialogId(World.getPlayer().getMerchantList().getId());
-        cmd.send();
+        final ItemCount count = parentItem.getCount();
+        if (!ItemCount.isGreaterZero(count)) {
+            LOGGER.error("Tried sell from a slot that contains no items!");
+            return;
+        }
+        assert count != null;
+
+        World.getNet().sendCommand(new SellInventoryItemCmd(merchantList.getId(), getSlotId(), count));
     }
 
     /**
      * Drag the item in the inventory to a location on the map.
      *
      * @param targetTile the target location on the map
-     * @param count
+     * @param count      the amount of items to drag to the new location
      */
     @Override
-    public void dragTo(final InteractiveMapTile targetTile, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveMapTile targetTile, @Nonnull final ItemCount count) {
         if (!isValidItem()) {
             return;
         }
 
-        final DragInvMapCmd cmd =
-                CommandFactory.getInstance().getCommand(
-                        CommandList.CMD_DRAG_INV_MAP, DragInvMapCmd.class);
-        cmd.setDragFrom(getSlotId());
-        cmd.setDragTo(targetTile.getLocation());
-        cmd.setCount(count);
-        cmd.send();
+        World.getNet().sendCommand(new DragInvMapCmd(getSlotId(), targetTile.getLocation(), count));
     }
 
     @Override
-    public void dragTo(final InteractiveContainerSlot targetSlot, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveContainerSlot targetSlot, @Nonnull final ItemCount count) {
         if (!isValidItem()) {
             return;
         }
 
-        final DragInvScCmd cmd = CommandFactory.getInstance().getCommand(CommandList.CMD_DRAG_INV_SC,
-                DragInvScCmd.class);
-        cmd.setSource(getSlotId());
-        cmd.setTarget(targetSlot.getSlot().getContainerId(), targetSlot.getSlot().getLocation());
-        cmd.setCount(count);
-        cmd.send();
-    }
-
-    /**
-     * Encode a use operation with this slot in the inventory.
-     *
-     * @param writer the writer to receive the encoded data
-     */
-    @Override
-    public void encodeUse(final NetCommWriter writer) {
-        writer.writeByte(REFERENCE_ID);
-        writer.writeByte((byte) getSlotId());
+        final ContainerSlot slot = targetSlot.getSlot();
+        World.getNet().sendCommand(new DragInvScCmd(getSlotId(), slot.getContainerId(), slot.getLocation(), count));
     }
 
     /**
@@ -203,6 +198,7 @@ public final class InteractiveInventorySlot extends AbstractDraggable implements
      *
      * @return the ID of the item in this slot
      */
+    @Nullable
     public ItemId getItemId() {
         return parentItem.getItemID();
     }

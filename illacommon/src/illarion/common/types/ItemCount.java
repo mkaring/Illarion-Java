@@ -21,6 +21,10 @@ package illarion.common.types;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.NetCommWriter;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
+import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
 
 /**
@@ -28,6 +32,8 @@ import java.io.IOException;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@ThreadSafe
+@Immutable
 public final class ItemCount implements Comparable<ItemCount> {
     /**
      * The maximal value that is valid for the item count.
@@ -42,11 +48,13 @@ public final class ItemCount implements Comparable<ItemCount> {
     /**
      * Stack instance for the count value 0.
      */
+    @Nonnull
     public static final ItemCount ZERO = new ItemCount(0);
 
     /**
      * Static instance for the count value 1.
      */
+    @Nonnull
     public static final ItemCount ONE = new ItemCount(1);
 
     /**
@@ -62,6 +70,7 @@ public final class ItemCount implements Comparable<ItemCount> {
      * @throws IllegalArgumentException in case the value is less then {@link #MIN_VALUE} or larger then
      *                                  {@link #MAX_VALUE}.
      */
+    @Nonnull
     public static ItemCount getInstance(final int value) {
         switch (value) {
             case 0:
@@ -82,7 +91,8 @@ public final class ItemCount implements Comparable<ItemCount> {
      *                                  {@link #MAX_VALUE}.
      * @throws IOException              in case the reading operation fails
      */
-    public static ItemCount getInstance(final NetCommReader reader) throws IOException {
+    @Nonnull
+    public static ItemCount getInstance(@Nonnull final NetCommReader reader) throws IOException {
         return getInstance(reader.readUShort());
     }
 
@@ -100,16 +110,16 @@ public final class ItemCount implements Comparable<ItemCount> {
         this.value = value;
     }
 
-    public static boolean isGreaterZero(final ItemCount count) {
+    public static boolean isGreaterZero(@Nullable final ItemCount count) {
         return (count != null) && (count.getValue() > 0);
     }
 
-    public static boolean isGreaterOne(final ItemCount count) {
+    public static boolean isGreaterOne(@Nullable final ItemCount count) {
         return (count != null) && (count.getValue() > 1);
     }
 
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(@Nullable final Object obj) {
         return super.equals(obj) || ((obj instanceof ItemCount) && equals((ItemCount) obj));
     }
 
@@ -118,6 +128,7 @@ public final class ItemCount implements Comparable<ItemCount> {
         return value;
     }
 
+    @Nonnull
     @Override
     public String toString() {
         return "Item count: " + Integer.toString(value);
@@ -128,7 +139,7 @@ public final class ItemCount implements Comparable<ItemCount> {
      *
      * @param writer the writer that receives the value
      */
-    public void encode(final NetCommWriter writer) {
+    public void encode(@Nonnull final NetCommWriter writer) {
         writer.writeUShort(value);
     }
 
@@ -138,8 +149,8 @@ public final class ItemCount implements Comparable<ItemCount> {
      * @param obj the second instance to check
      * @return {@code true} in case both instances represent the same value
      */
-    public boolean equals(final ItemCount obj) {
-        return value == obj.value;
+    public boolean equals(@Nullable final ItemCount obj) {
+        return (obj != null) && (value == obj.value);
     }
 
     /**
@@ -152,7 +163,7 @@ public final class ItemCount implements Comparable<ItemCount> {
     }
 
     @Override
-    public int compareTo(final ItemCount o) {
+    public int compareTo(@Nonnull final ItemCount o) {
         if (value == o.value) {
             return 0;
         }

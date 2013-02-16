@@ -19,7 +19,12 @@
 package illarion.mapedit.tools.panel;
 
 import illarion.mapedit.Lang;
+import illarion.mapedit.resource.loaders.ImageLoader;
+import illarion.mapedit.tools.ToolManager;
+import illarion.mapedit.tools.panel.components.SongTable;
+import org.pushingpixels.flamingo.api.common.icon.ResizableIcon;
 
+import javax.annotation.Nonnull;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -27,19 +32,36 @@ import java.awt.event.ActionListener;
 
 /**
  * @author Tim
+ * @author Fredrik K
  */
 public class MusicPanel extends JPanel {
 
+    @Nonnull
     private final JSpinner spinner;
+    @Nonnull
     private final JCheckBox delCheckBox;
+    @Nonnull
+    private final JSpinner radiusSpinner;
+    @Nonnull
+    private final SongTable songTable;
 
+    /**
+     * Default constructor
+     */
     public MusicPanel() {
         setLayout(new BorderLayout());
+
+        songTable = new SongTable();
+        add(songTable, BorderLayout.CENTER);
 
         final JPanel northPanel = new JPanel(new GridLayout(0, 2));
 
         spinner = new JSpinner(new SpinnerNumberModel(0, 0, 9000, 1));
+        radiusSpinner = new JSpinner(new SpinnerNumberModel(1, 1, ToolManager.TOOL_RADIUS, 1));
         delCheckBox = new JCheckBox();
+        ResizableIcon icon =  ImageLoader.getResizableIcon("player_play") ;
+        icon.setDimension(new Dimension(16,16));
+        JButton playButton = new JButton(icon);
 
         delCheckBox.addActionListener(new ActionListener() {
             @Override
@@ -47,18 +69,41 @@ public class MusicPanel extends JPanel {
                 spinner.setEnabled(!delCheckBox.isSelected());
             }
         });
+        playButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                songTable.playSelectedSong();
+            }
+        });
 
-        northPanel.add(new JLabel(Lang.getMsg("tools.MusicTool.MusicID")));
-        northPanel.add(spinner);
+        northPanel.add(new JLabel(Lang.getMsg("tools.MusicTool.Radius")));
+        northPanel.add(radiusSpinner);
         northPanel.add(new JLabel(Lang.getMsg("tools.MusicTool.Delete")));
         northPanel.add(delCheckBox);
+        northPanel.add(new JLabel(Lang.getMsg("tools.MusicTool.Listen")));
+        northPanel.add(playButton);
         add(northPanel, BorderLayout.NORTH);
     }
 
+    /**
+     * Get selected musicID
+     *
+     * @return musicID or 0 if eraser is selected
+     */
     public int getMusicID() {
-        if (delCheckBox.isEnabled()) {
-            return (Integer) spinner.getValue();
+        Integer musicID = 0;
+
+        if (!delCheckBox.isSelected()) {
+            musicID = songTable.getSelectedMusicID();
         }
-        return 0;
+        return musicID;
+    }
+
+    /**
+     * Get the radius for painting
+     * @return the chosen radius.
+     */
+    public int getRadius() {
+        return (Integer) radiusSpinner.getValue();
     }
 }

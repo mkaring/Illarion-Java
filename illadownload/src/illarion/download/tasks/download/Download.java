@@ -20,6 +20,8 @@ package illarion.download.tasks.download;
 
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -115,6 +117,7 @@ public final class Download implements Callable<DownloadResult> {
         directory = dir;
     }
 
+    @Nullable
     @Override
     public DownloadResult call() throws IOException {
         DownloadResult retVal = null;
@@ -178,9 +181,15 @@ public final class Download implements Callable<DownloadResult> {
     @SuppressWarnings("nls")
     public boolean prepare() {
         if (DO_NOT_DOWNLOAD || !manager.isConnected()) {
-            manager.reportDownloadFinished(this, new DownloadResult(
-                    DownloadResult.Results.notModified, "download.not_modified",
-                    source, target, lastModified));
+            if (lastModified == 0L) {
+                manager.reportDownloadFinished(this,
+                        new DownloadResult(DownloadResult.Results.downloadFailed, "download.no_connection",
+                                source, target, 0L, "No connection"));
+            } else {
+                manager.reportDownloadFinished(this,
+                        new DownloadResult(DownloadResult.Results.notModified, "download.not_modified",
+                                source, target, lastModified));
+            }
             return false;
         }
         try {
@@ -199,7 +208,7 @@ public final class Download implements Callable<DownloadResult> {
                     case HttpURLConnection.HTTP_NOT_MODIFIED:
                         try {
                             httpConn.getInputStream().close();
-                        } catch (final IOException ex) {
+                        } catch (@Nonnull final IOException ex) {
                             // nothing to do
                         }
                         if (target.exists()) {
@@ -218,7 +227,7 @@ public final class Download implements Callable<DownloadResult> {
                     default:
                         try {
                             httpConn.getInputStream().close();
-                        } catch (final IOException ex) {
+                        } catch (@Nonnull final IOException ex) {
                             // nothing to do
                         }
                         manager.reportDownloadFinished(this,
@@ -232,7 +241,7 @@ public final class Download implements Callable<DownloadResult> {
             manager.reportProgress(this, 0L, length);
 
             connection.getInputStream().close();
-        } catch (final IOException ex) {
+        } catch (@Nonnull final IOException ex) {
             manager.reportDownloadFinished(this, new DownloadResult(
                     DownloadResult.Results.downloadFailed, "download.not_found",
                     source, target, 0L, ex.toString()));
@@ -248,11 +257,19 @@ public final class Download implements Callable<DownloadResult> {
      * @return the result of the download
      * @throws IOException in case the download or storing the download data fails
      */
+    @Nullable
     @SuppressWarnings("nls")
     private DownloadResult callImpl() throws IOException {
-        long transferred = 0;
+        long transferred = 0L;
         if (target.exists()) {
-            transferred = target.length();
+            if (!target.canWrite() || !target.isFile()) {
+                if (!target.delete()) {
+                    return new DownloadResult(DownloadResult.Results.downloadFailed, "download.invalid_target", source,
+                            target, 0L, "Target file is locked.");
+                }
+            } else {
+                transferred = target.length();
+            }
         }
 
         URLConnection connection = null;
@@ -266,9 +283,14 @@ public final class Download implements Callable<DownloadResult> {
             connection.setDoOutput(false);
             connection.setDoInput(true);
 
+            if (transferred > 0L) {
+                connection.setRequestProperty("Range", "bytes=" + transferred + '-');
+                LOGGER.info("Continue download: " + source.toString());
+            }
+
             connection.connect();
 
-            final long length = Math.max(0, connection.getContentLength());
+            final long length = Math.max(0, connection.getContentLength()) + transferred;
 
             if (length == 0) {
                 connection.getInputStream().close();
@@ -279,49 +301,38 @@ public final class Download implements Callable<DownloadResult> {
             manager.reportProgress(this, 0L, length);
 
             onlineFileLastMod = connection.getLastModified();
-            if ((transferred == length) && target.exists()
-                    && (target.lastModified() >= onlineFileLastMod)) {
-                return new DownloadResult(DownloadResult.Results.downloaded,
-                        "download.done", source, target, onlineFileLastMod);
+            if ((transferred == length) && target.exists() && (target.lastModified() >= onlineFileLastMod)) {
+                return new DownloadResult(DownloadResult.Results.downloaded, "download.done", source, target,
+                        onlineFileLastMod);
             }
 
             if (connection instanceof HttpURLConnection) {
-                final HttpURLConnection httpConn =
-                        (HttpURLConnection) connection;
+                final HttpURLConnection httpConn = (HttpURLConnection) connection;
                 switch (httpConn.getResponseCode()) {
                     case HttpURLConnection.HTTP_NOT_MODIFIED:
                         try {
                             httpConn.getInputStream().close();
-                        } catch (final IOException ex) {
+                        } catch (@Nonnull final IOException ex) {
                             // nothing to do
                         }
-                        return new DownloadResult(
-                                DownloadResult.Results.notModified,
-                                "download.not_modified", source, target,
-                                lastModified);
+                        return new DownloadResult(DownloadResult.Results.notModified, "download.not_modified",
+                                source, target, lastModified);
                     case HttpURLConnection.HTTP_OK:
                     case HttpURLConnection.HTTP_PARTIAL:
                         break;
                     default:
                         try {
                             httpConn.getInputStream().close();
-                        } catch (final IOException ex) {
+                        } catch (@Nonnull final IOException ex) {
                             // nothing to do
                         }
-                        return new DownloadResult(
-                                DownloadResult.Results.downloadFailed,
-                                "download.not_found", source, target, 0L, "Download failed");
+                        return new DownloadResult(DownloadResult.Results.downloadFailed, "download.not_found",
+                                source, target, 0L, "Download failed");
                 }
             }
 
-            if (target.exists() && !target.delete()) {
-                connection.getInputStream().close();
-                return new DownloadResult(DownloadResult.Results.downloadFailed, "download.invalid_target", source,
-                        target, 0L, "Target file is locked.");
-            }
-
             inChannel = Channels.newChannel(connection.getInputStream());
-            fileChannel = new FileOutputStream(target).getChannel();
+            fileChannel = new FileOutputStream(target, true).getChannel();
 
             long blockLength = length / 100;
             if (blockLength < 1024) {

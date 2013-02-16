@@ -24,6 +24,7 @@ import illarion.common.util.StoppableStorage;
 import javolution.util.FastList;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.util.Iterator;
 
 /**
@@ -59,6 +60,7 @@ public final class LightTracer extends Thread implements Stoppable {
     /**
      * The storage of the pre-calculated rays.
      */
+    @Nonnull
     private final static LightRays[] RAYS;
 
     static {
@@ -114,6 +116,7 @@ public final class LightTracer extends Thread implements Stoppable {
      * The list of light sources that are handled by this light tracer. This
      * list contains all lights that still require calculations.
      */
+    @Nonnull
     private final FastList<LightSource> dirtyLights;
 
     /**
@@ -153,6 +156,7 @@ public final class LightTracer extends Thread implements Stoppable {
      * The list of light sources handled by this light tracer. This list
      * contains all lights that currently do not require any calculations.
      */
+    @Nonnull
     private final FastList<LightSource> tidyLights;
 
     /**
@@ -180,7 +184,7 @@ public final class LightTracer extends Thread implements Stoppable {
      * @param light the light that shall be added to the light tracer and so to
      *              the game screen
      */
-    public void add(final LightSource light) {
+    public void add(@Nonnull final LightSource light) {
         light.setMapSource(mapSource);
         synchronized (lightsListsLock) {
             if (!dirtyLights.contains(light)) {
@@ -312,7 +316,7 @@ public final class LightTracer extends Thread implements Stoppable {
      *
      * @param light the light that shall be updated.
      */
-    public void refreshLight(final LightSource light) {
+    public void refreshLight(@Nonnull final LightSource light) {
         synchronized (lightsListsLock) {
             if (!tidyLights.contains(light)) {
                 return;
@@ -388,7 +392,7 @@ public final class LightTracer extends Thread implements Stoppable {
                 doRestart = false;
             }
             LightSource light = null;
-            final boolean tidyLight = false;
+            boolean dirtyLight = false;
             synchronized (lightsListsLock) {
                 if (dirty && !pause) {
                     if (!tidyLights.isEmpty()
@@ -402,13 +406,14 @@ public final class LightTracer extends Thread implements Stoppable {
                             tidyLights.add(light);
                             lastTinyIndex++;
                         }
+                        dirtyLight = true;
                     } else {
                         lastTinyIndex = -1;
                     }
                 } else {
                     try {
                         lightsListsLock.wait();
-                    } catch (final InterruptedException e) {
+                    } catch (@Nonnull final InterruptedException e) {
                         LOGGER.debug("Light tracer woken up for unknown reasons", e);
                     }
 
@@ -416,7 +421,7 @@ public final class LightTracer extends Thread implements Stoppable {
             }
 
             if (light != null) {
-                if (!tidyLight) {
+                if (dirtyLight) {
                     light.calculateShadows();
                 }
                 light.apply();
@@ -486,5 +491,16 @@ public final class LightTracer extends Thread implements Stoppable {
         running = true;
         super.start();
         StoppableStorage.getInstance().add(this);
+    }
+
+    /**
+     * Remove all lights.
+     */
+    public void clear() {
+        synchronized (lightsListsLock) {
+            tidyLights.clear();
+            dirtyLights.clear();
+            restart();
+        }
     }
 }

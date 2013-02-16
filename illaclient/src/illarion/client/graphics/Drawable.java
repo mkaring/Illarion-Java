@@ -22,6 +22,8 @@ import illarion.common.types.Rectangle;
 import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Graphics;
 
+import javax.annotation.Nonnull;
+
 /**
  * This interface defines a simple object that can be drawn to the screen.
  *
@@ -29,25 +31,27 @@ import org.newdawn.slick.Graphics;
  */
 public interface Drawable {
     /**
-     * Draw the object on the screen.
-     *
-     * @return true in case the render operation was performed correctly
-     */
-    boolean draw(Graphics g);
-
-    /**
-     * Update the alpha value of this component. This is done by considering the
-     * size and the location of the component and regarding the alpha target.
-     *
-     * @param c
-     * @param delta the time in milliseconds since the last update
-     */
-    void update(final GameContainer c, int delta);
-
-    /**
      * Get the area covered by this item the last time is was rendered.
      *
      * @return the last area that was covered by this item
      */
+    @Nonnull
     Rectangle getLastDisplayRect();
+
+    /**
+     * Draw the object on the screen.
+     *
+     * @return true in case the render operation was performed correctly
+     */
+    @SuppressWarnings("BooleanMethodNameMustStartWithQuestion")
+    boolean draw(@Nonnull Graphics g);
+
+    /**
+     * Update the alpha value of this component. This is done by considering the size and the location of the
+     * component and regarding the alpha target.
+     *
+     * @param container the container that stores the graphic
+     * @param delta     the time in milliseconds since the last update
+     */
+    void update(@Nonnull GameContainer container, int delta);
 }

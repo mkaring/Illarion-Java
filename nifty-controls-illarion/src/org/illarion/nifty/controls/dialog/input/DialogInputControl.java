@@ -33,6 +33,8 @@ import org.bushe.swing.event.EventTopicSubscriber;
 import org.illarion.nifty.controls.DialogInput;
 import org.illarion.nifty.controls.DialogInputConfirmedEvent;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Properties;
 
 /**
@@ -47,11 +49,13 @@ public class DialogInputControl
     /**
      * The instance of the Nifty-GUI that is parent to this control.
      */
+    @Nullable
     private Nifty niftyInstance;
 
     /**
      * The screen that displays this control.
      */
+    @Nullable
     private Screen currentScreen;
 
     /**
@@ -67,11 +71,13 @@ public class DialogInputControl
     /**
      * The label of the left button that is displayed in this dialog.
      */
+    @Nullable
     private String buttonLabelLeft;
 
     /**
      * The label of the right button that is displayed in this dialog.
      */
+    @Nullable
     private String buttonLabelRight;
 
     /**
@@ -82,11 +88,12 @@ public class DialogInputControl
     /**
      * The text that is displayed as description in this dialog.
      */
+    @Nullable
     private String description;
 
     @Override
-    public void bind(final Nifty nifty, final Screen screen, final Element element, final Properties parameter,
-                     final Attributes controlDefinitionAttributes) {
+    public void bind(@Nonnull final Nifty nifty, @Nonnull final Screen screen, @Nonnull final Element element,
+                     @Nonnull final Properties parameter, @Nonnull final Attributes controlDefinitionAttributes) {
         super.bind(nifty, screen, element, parameter, controlDefinitionAttributes);
         niftyInstance = nifty;
         currentScreen = screen;
@@ -104,8 +111,12 @@ public class DialogInputControl
 
     @Override
     public void onStartScreen() {
-        setButtonLabel(DialogInput.DialogButton.left, buttonLabelLeft);
-        setButtonLabel(DialogInput.DialogButton.right, buttonLabelRight);
+        assert buttonLabelLeft != null : "Control was not bound correctly";
+        assert buttonLabelRight != null : "Control was not bound correctly";
+        assert description != null : "Control was not bound correctly";
+
+        setButtonLabel(DialogInput.DialogButton.LeftButton, buttonLabelLeft);
+        setButtonLabel(DialogInput.DialogButton.RightButton, buttonLabelRight);
         setDescription(description);
         setMaximalLength(maxLength);
 
@@ -124,13 +135,13 @@ public class DialogInputControl
     }
 
     @Override
-    public void setButtonLabel(final DialogInput.DialogButton button, final String label) {
+    public void setButtonLabel(@Nonnull final DialogButton button, @Nonnull final String label) {
         Button buttonControl = null;
         switch (button) {
-            case left:
+            case LeftButton:
                 buttonControl = getContent().findNiftyControl("#buttonLeft", Button.class);
                 break;
-            case right:
+            case RightButton:
                 buttonControl = getContent().findNiftyControl("#buttonRight", Button.class);
         }
 
@@ -139,6 +150,7 @@ public class DialogInputControl
         }
 
         buttonControl.setText(label);
+        assert niftyInstance != null : "Control was not bound correctly.";
         niftyInstance.subscribe(currentScreen, buttonControl.getId(), ButtonClickedEvent.class, this);
     }
 
@@ -152,7 +164,7 @@ public class DialogInputControl
     }
 
     @Override
-    public void setDescription(final String text) {
+    public void setDescription(@Nonnull final String text) {
         final Label label = getContent().findNiftyControl("#description", Label.class);
         if (label == null) {
             throw new IllegalArgumentException("Failed to fetch description label.");
@@ -161,17 +173,19 @@ public class DialogInputControl
     }
 
     @Override
-    public void onEvent(final String topic, final ButtonClickedEvent data) {
+    public void onEvent(@Nonnull final String topic, final ButtonClickedEvent data) {
+        assert niftyInstance != null : "Control was not bound correctly.";
+
         if (alreadyClosed) {
             return;
         }
 
         if (topic.contains("#buttonLeft")) {
             niftyInstance.publishEvent(getId(),
-                    new DialogInputConfirmedEvent(dialogId, DialogInput.DialogButton.left, getInputText()));
+                    new DialogInputConfirmedEvent(dialogId, DialogInput.DialogButton.LeftButton, getInputText()));
         } else {
             niftyInstance.publishEvent(getId(),
-                    new DialogInputConfirmedEvent(dialogId, DialogInput.DialogButton.right, getInputText()));
+                    new DialogInputConfirmedEvent(dialogId, DialogInput.DialogButton.RightButton, getInputText()));
         }
         closeWindow();
     }
@@ -198,6 +212,6 @@ public class DialogInputControl
             throw new IllegalArgumentException("Failed to fetch input field.");
         }
 
-        return field.getText();
+        return field.getRealText();
     }
 }

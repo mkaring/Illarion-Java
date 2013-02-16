@@ -1,35 +1,31 @@
 /*
  * This file is part of the Illarion Common Library.
  *
- * Copyright © 2011 - Illarion e.V.
+ * Copyright © 2013 - Illarion e.V.
  *
- * The Illarion Common Library is free software: you can redistribute i and/or
- * modify it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- * 
- * The Illarion Common Library is distributed in the hope that it will be
- * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
- * Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with
- * the Illarion Common Library. If not, see <http://www.gnu.org/licenses/>.
+ * The Illarion Common Library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * The Illarion Common Library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with the Illarion Common Library.  If not, see <http://www.gnu.org/licenses/>.
  */
 package illarion.common.util;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.io.*;
 
 /**
  * This class is used to manage the global directory manager that takes care for
  * the directories the manager needs to use.
- * 
+ *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
 public final class DirectoryManager {
@@ -53,6 +49,7 @@ public final class DirectoryManager {
     /**
      * The directory that stores the application data (so the *.jar files)
      */
+    @Nullable
     private File dataDirectory;
 
     /**
@@ -64,6 +61,7 @@ public final class DirectoryManager {
     /**
      * The directory that stores the user data.
      */
+    @Nullable
     private File userDirectory;
 
     /**
@@ -72,7 +70,7 @@ public final class DirectoryManager {
     @SuppressWarnings("nls")
     private DirectoryManager() {
         final String userPath =
-            System.getProperty("user.home") + File.separator + ".illarion";
+                System.getProperty("user.home") + File.separator + ".illarion";
 
         final File settingsFile = new File(userPath);
 
@@ -107,16 +105,16 @@ public final class DirectoryManager {
                 }
                 line = inFile.readLine();
             }
-        } catch (final FileNotFoundException e) {
+        } catch (@Nonnull final FileNotFoundException e) {
             return;
-        } catch (final IOException e) {
+        } catch (@Nonnull final IOException e) {
             return;
         } finally {
             try {
                 if (inFile != null) {
                     inFile.close();
                 }
-            } catch (final IOException e) {
+            } catch (@Nonnull final IOException e) {
                 return;
             }
         }
@@ -124,9 +122,10 @@ public final class DirectoryManager {
 
     /**
      * Get the singleton instance of this class.
-     * 
+     *
      * @return the singleton instance
      */
+    @Nonnull
     public static DirectoryManager getInstance() {
         return INSTANCE;
     }
@@ -134,27 +133,29 @@ public final class DirectoryManager {
     /**
      * Get the directory that is used to store the application data for the
      * Illarion Java applications.
-     * 
+     *
      * @return the directory or <code>null</code> in case there is no directory
      *         set
      */
+    @Nullable
     public File getDataDirectory() {
         return dataDirectory;
     }
 
     /**
      * Get the directory for the user data.
-     * 
+     *
      * @return the directory for the user data or <code>null</code> in case its
      *         not set
      */
+    @Nullable
     public File getUserDirectory() {
         return userDirectory;
     }
 
     /**
      * Check if a application data directory is set.
-     * 
+     *
      * @return <code>true</code> in case the application data directory is set
      */
     public boolean hasDataDirectory() {
@@ -163,7 +164,7 @@ public final class DirectoryManager {
 
     /**
      * Check if a user directory is set.
-     * 
+     *
      * @return <code>true</code> in case a user directory is set
      */
     public boolean hasUserDirectory() {
@@ -172,7 +173,7 @@ public final class DirectoryManager {
 
     /**
      * Save the directory settings to the hard disk.
-     * 
+     *
      * @return <code>true</code> in case the saving operation went well
      */
     @SuppressWarnings("nls")
@@ -181,7 +182,7 @@ public final class DirectoryManager {
             return true;
         }
         final String userPath =
-            System.getProperty("user.home") + File.separator + ".illarion";
+                System.getProperty("user.home") + File.separator + ".illarion";
 
         final File settingsFile = new File(userPath);
 
@@ -209,14 +210,14 @@ public final class DirectoryManager {
             }
 
             writer.flush();
-        } catch (final IOException e) {
+        } catch (@Nonnull final IOException e) {
             return false;
         } finally {
             try {
                 if (writer != null) {
                     writer.close();
                 }
-            } catch (final IOException e) {
+            } catch (@Nonnull final IOException e) {
                 return false;
             }
         }
@@ -229,11 +230,11 @@ public final class DirectoryManager {
      * Set a application directory. This causes the directory manager to check
      * if the directory is valid or not. In case its not the directory won't be
      * set.
-     * 
+     *
      * @param dir the directory that is supposed to be the new application data
      *            directory
      */
-    public void setDataDirectory(final File dir) {
+    public void setDataDirectory(@Nonnull final File dir) {
         if (testDirectory(dir) && !dir.equals(dataDirectory)) {
             dataDirectory = dir;
             dirty = true;
@@ -243,10 +244,10 @@ public final class DirectoryManager {
     /**
      * Set a user directory. This causes the directory manager to check if the
      * directory is valid or not. In case its not the directory won't be set.
-     * 
+     *
      * @param dir the directory that is supposed to be the new user directory
      */
-    public void setUserDirectory(final File dir) {
+    public void setUserDirectory(@Nonnull final File dir) {
         if (testDirectory(dir) && !dir.equals(userDirectory)) {
             userDirectory = dir;
             dirty = true;
@@ -257,11 +258,11 @@ public final class DirectoryManager {
      * This function is used to test if a file objects points to any existing
      * directory. Also the function will test if this directory is usable for
      * all required operations.
-     * 
+     *
      * @param dir the object to test
      * @return <code>true<code> in case the object points to a existing directory
      */
-    private boolean testDirectory(final File dir) {
+    private static boolean testDirectory(@Nullable final File dir) {
         if (dir == null) {
             return false;
         }
@@ -288,7 +289,7 @@ public final class DirectoryManager {
             if (!testFile.delete()) {
                 return false;
             }
-        } catch (final Exception ex) {
+        } catch (@Nonnull final Exception ex) {
             return false;
         }
 

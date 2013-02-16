@@ -29,6 +29,9 @@ import org.newdawn.slick.Graphics;
 import org.newdawn.slick.Image;
 import org.newdawn.slick.SlickException;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
  * This class takes care for applying the weather effects to the screen.
  *
@@ -77,11 +80,10 @@ public final class WeatherRenderer {
      * @param delta the time since the last render loop in milliseconds
      */
     public void update(final GameContainer c, final int delta) {
-        rainDropping += (1.f * delta) / 1000.f;
+        rainDropping += (1.f * delta) / 2000.f;
         rainDropping %= 1.f;
 
         gustAnimation += (1.f * delta) / 5000.f;
-        rainDropping %= 1.f;
     }
 
     private Image processImage0;
@@ -92,17 +94,27 @@ public final class WeatherRenderer {
 
     private Image getNextProcessImage(final int width, final int height) throws SlickException {
         if (lastImage == 1) {
-            if (processImage0 == null) {
-                processImage0 = Image.createOffscreenImage(width, height);
-            }
+            processImage0 = validateImage(width, height, processImage0);
             lastImage = 0;
             return processImage0;
         }
-        if (processImage1 == null) {
-            processImage1 = Image.createOffscreenImage(width, height);
-        }
+        processImage1 = validateImage(width, height, processImage1);
         lastImage = 1;
         return processImage1;
+    }
+
+    private static Image validateImage(final int width, final int height, @Nullable final Image original) throws SlickException {
+        if (original == null) {
+            return Image.createOffscreenImage(width, height);
+        }
+        if ((original.getHeight() == height) && (original.getWidth() == width)) {
+            return original;
+        }
+        if ((original.getTextureHeight() >= height) && (original.getTextureWidth() >= width)) {
+            return original.getSubImage(0, 0, width, height);
+        }
+        original.destroy();
+        return Image.createOffscreenImage(width, height);
     }
 
 
@@ -112,7 +124,7 @@ public final class WeatherRenderer {
      * @param renderImage the image that is rendered to the screen, this image remains unchanged
      * @return the new image with the post processed graphics
      */
-    public Image postProcess(final Image renderImage) throws SlickException {
+    public Image postProcess(@Nonnull final Image renderImage) throws SlickException {
         load();
 
         Image currentImage = renderImage;
@@ -159,6 +171,7 @@ public final class WeatherRenderer {
             rainShader.setWindDirection(World.getWeather().getWind() / 100.f);
             rainShader.setAnimation(rainDropping);
             rainShader.setGustAnimation(gustAnimation);
+            rainShader.setMapOffset(Camera.getInstance().getViewportOffsetX(), Camera.getInstance().getViewportOffsetY());
 
             g.drawImage(currentImage, 0, 0);
 

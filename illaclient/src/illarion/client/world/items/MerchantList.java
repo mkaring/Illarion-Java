@@ -18,12 +18,14 @@
  */
 package illarion.client.world.items;
 
-import illarion.client.net.CommandFactory;
-import illarion.client.net.CommandList;
-import illarion.client.net.client.TradeItemCmd;
+import illarion.client.net.client.BuyTradingItem;
+import illarion.client.net.client.CloseDialogTradingCmd;
+import illarion.client.world.World;
 import illarion.client.world.events.CloseDialogEvent;
 import illarion.common.types.ItemCount;
 import org.bushe.swing.event.EventBus;
+
+import javax.annotation.Nonnull;
 
 /**
  * This classes are used to store to information about the goods a merchant is trading.
@@ -34,6 +36,7 @@ public final class MerchantList {
     /**
      * This is the list of items the merchant is trading.
      */
+    @Nonnull
     private final MerchantItem[] itemList;
 
     /**
@@ -95,11 +98,7 @@ public final class MerchantList {
      * Close this dialog by sending the command to the server that orders the dialog to close.
      */
     public void closeDialog() {
-        final TradeItemCmd cmd = (TradeItemCmd) CommandFactory.getInstance().getCommand(CommandList.CMD_TRADE_ITEM);
-        cmd.setCloseDialog();
-        cmd.setDialogId(listId);
-        cmd.send();
-
+        World.getNet().sendCommand(new CloseDialogTradingCmd(listId));
         EventBus.publish(new CloseDialogEvent(listId, CloseDialogEvent.DialogType.Merchant));
     }
 
@@ -108,7 +107,7 @@ public final class MerchantList {
      *
      * @param item the index of the item to buy
      */
-    public void buyItem(final MerchantItem item) {
+    public void buyItem(@Nonnull final MerchantItem item) {
         buyItem(item, item.getBundleSize());
     }
 
@@ -117,7 +116,7 @@ public final class MerchantList {
      *
      * @param item the index of the item to buy
      */
-    public void buyItem(final MerchantItem item, final ItemCount count) {
+    public void buyItem(@Nonnull final MerchantItem item, @Nonnull final ItemCount count) {
         if (itemList[item.getIndex()] != item) {
             throw new IllegalArgumentException("This item is not part of this merchant list");
         }
@@ -139,10 +138,7 @@ public final class MerchantList {
      * @param index the index of the item to buy
      * @param count the amount of items to buy
      */
-    public void buyItem(final int index, final ItemCount count) {
-        final TradeItemCmd cmd = (TradeItemCmd) CommandFactory.getInstance().getCommand(CommandList.CMD_TRADE_ITEM);
-        cmd.setDialogId(listId);
-        cmd.setBuy(index, count);
-        cmd.send();
+    public void buyItem(final int index, @Nonnull final ItemCount count) {
+        World.getNet().sendCommand(new BuyTradingItem(listId, index, count));
     }
 }

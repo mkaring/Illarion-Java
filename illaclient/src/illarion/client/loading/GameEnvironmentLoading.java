@@ -19,15 +19,14 @@
 package illarion.client.loading;
 
 import illarion.client.graphics.FontLoader;
-import illarion.client.world.GameFactory;
 import illarion.client.world.World;
 import org.newdawn.slick.loading.DeferredResource;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
- * This loading task takes care for loading the components of the game
- * environment that still need to be loaded.
+ * This loading task takes care for loading the components of the game environment that still need to be loaded.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
@@ -37,14 +36,14 @@ public final class GameEnvironmentLoading implements DeferredResource {
      */
     @Override
     public void load() throws IOException {
-        GameFactory.getInstance().init();
-        World.initMissing();
+        World.initWorldComponents();
         FontLoader.getInstance().prepareAllFonts();
     }
 
     /**
      * The human readable description of this loading task.
      */
+    @Nullable
     @Override
     public String getDescription() {
         return null;

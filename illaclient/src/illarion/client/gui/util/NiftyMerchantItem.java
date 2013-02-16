@@ -25,6 +25,8 @@ import illarion.client.resources.ItemFactory;
 import illarion.client.world.items.MerchantItem;
 import org.illarion.nifty.controls.MerchantListEntry;
 
+import javax.annotation.Nonnull;
+
 /**
  * This implementation of the merchant item is very similar to the original merchant item. It just adds a few entries
  * of data that are needed so the item can be displayed properly in the GUI.
@@ -35,6 +37,7 @@ public final class NiftyMerchantItem extends MerchantItem implements MerchantLis
     /**
      * The image that represents this merchant item.
      */
+    @Nonnull
     private final NiftyImage itemImage;
 
     /**
@@ -45,11 +48,11 @@ public final class NiftyMerchantItem extends MerchantItem implements MerchantLis
      * @param nifty the instance of the Nifty-GUI used to create the objects for the GUI
      * @param org   the original merchant item that contains the actual data
      */
-    public NiftyMerchantItem(final Nifty nifty, final MerchantItem org) {
+    public NiftyMerchantItem(@Nonnull final Nifty nifty, @Nonnull final MerchantItem org) {
         super(org);
 
         itemImage = new NiftyImage(nifty.getRenderEngine(),
-                new EntitySlickRenderImage(ItemFactory.getInstance().getPrototype(org.getItemId())));
+                new EntitySlickRenderImage(ItemFactory.getInstance().getTemplate(org.getItemId().getValue())));
     }
 
     /**
@@ -57,6 +60,7 @@ public final class NiftyMerchantItem extends MerchantItem implements MerchantLis
      *
      * @return the Nifty image
      */
+    @Nonnull
     @Override
     public NiftyImage getItemImage() {
         return itemImage;

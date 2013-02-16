@@ -22,6 +22,9 @@ import illarion.common.types.Location;
 import javolution.util.FastList;
 import org.newdawn.slick.Color;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
  * This class handles a light source and contains its rays, the location and the
  * color of the light.
@@ -46,6 +49,7 @@ public final class LightSource {
      *                 in order to receive the parameters of the light
      * @return the prepared instance of the light source
      */
+    @Nullable
     @SuppressWarnings("nls")
     public static LightSource createLight(final Location loc,
                                           final int encoding) {
@@ -83,7 +87,7 @@ public final class LightSource {
      *
      * @param light the light that shall be put into the cache.
      */
-    public static void releaseLight(final LightSource light) {
+    public static void releaseLight(@Nonnull final LightSource light) {
         final int size = light.size - 1;
 
         if (CACHE[size] == null) {
@@ -106,6 +110,7 @@ public final class LightSource {
     /**
      * The color of the light itself.
      */
+    @Nonnull
     private final transient Color color;
 
     /**
@@ -119,6 +124,7 @@ public final class LightSource {
      * result from the pre-calculated light rays along with the situation on the
      * map such as objects that block out the light.
      */
+    @Nonnull
     private final float[][] intensity;
 
     /**
@@ -135,7 +141,8 @@ public final class LightSource {
     /**
      * The location of the light source on the map.
      */
-    private transient Location loc;
+    @Nonnull
+    private transient Location location;
 
     /**
      * The reference map that is used to get the data how the light spreads on
@@ -146,7 +153,7 @@ public final class LightSource {
     /**
      * The light rays that spread from the light source.
      */
-    private transient final LightRays rays;
+    private final LightRays rays;
 
     /**
      * The length of the light rays that are send out by this light source.
@@ -157,7 +164,7 @@ public final class LightSource {
      * A location instance for temporary purposes. This is for calculations or
      * to get some data from other classes.
      */
-    private transient final Location tempLocation = new Location();
+    private final Location tempLocation = new Location();
 
     /**
      * Constructor for a new light source at a given location with some encoded
@@ -167,7 +174,7 @@ public final class LightSource {
      * @param encoding the encoding of the light, this contains the color, the
      *                 brightness, the size and the inversion flag
      */
-    private LightSource(final Location location, final int encoding) {
+    private LightSource(@Nonnull final Location location, final int encoding) {
         final int newSize = (encoding / 10000) % 10;
         rays = LightTracer.getRays(newSize);
         intensity = new float[(newSize * 2) + 1][(newSize * 2) + 1];
@@ -184,10 +191,10 @@ public final class LightSource {
         if (lightCached) {
             return;
         }
-        final int xOff = loc.getScX() - size;
-        final int yOff = loc.getScY() - size;
+        final int xOff = location.getScX() - size;
+        final int yOff = location.getScY() - size;
 
-        tempLocation.setSC(xOff, yOff, loc.getScZ());
+        tempLocation.setSC(xOff, yOff, location.getScZ());
         final int xLimit = intensity.length + xOff;
         final int yLimit = intensity.length + yOff;
         while (tempLocation.getScX() < xLimit) {
@@ -245,8 +252,9 @@ public final class LightSource {
      *
      * @return the location of the light source
      */
+    @Nonnull
     public Location getLocation() {
-        return loc;
+        return location;
     }
 
     /**
@@ -266,12 +274,8 @@ public final class LightSource {
      * @param encoding the encoded data that defines the light source
      */
     @SuppressWarnings("nls")
-    private void init(final Location newLoc, final int encoding) {
-        if (newLoc == null) {
-            throw new IllegalArgumentException(
-                    "The location of this light must not be NULL");
-        }
-        loc = newLoc;
+    private void init(@Nonnull final Location newLoc, final int encoding) {
+        location = newLoc;
         int remEnc = encoding;
 
         final float blue = (remEnc % 10) / 9.f;
@@ -310,18 +314,14 @@ public final class LightSource {
      * @param changeLoc the location the change occurred on.
      */
     @SuppressWarnings("nls")
-    public void notifyChange(final Location changeLoc) {
-        if (changeLoc == null) {
-            throw new IllegalArgumentException(
-                    "The location that changes must not be NULL");
-        }
-        assert (lightCached == false);
-        if (loc.getScZ() != changeLoc.getScZ()) {
+    public void notifyChange(@Nonnull final Location changeLoc) {
+        assert !lightCached;
+        if (location.getScZ() != changeLoc.getScZ()) {
             return;
         }
 
-        if ((Math.abs(changeLoc.getScX() - loc.getScX()) <= size)
-                && (Math.abs(changeLoc.getScY() - loc.getScY()) <= size)) {
+        if ((Math.abs(changeLoc.getScX() - location.getScX()) <= size)
+                && (Math.abs(changeLoc.getScY() - location.getScY()) <= size)) {
             dirty = true;
         }
     }
@@ -358,7 +358,7 @@ public final class LightSource {
      */
     public int setIntensity(final int x, final int y, final float newInt) {
         assert (lightCached == false);
-        tempLocation.setSC(loc.getScX() + x, loc.getScY() + y, loc.getScZ());
+        tempLocation.setSC(location.getScX() + x, location.getScY() + y, location.getScZ());
 
         if (((x == 0) && (y == 0))
                 || mapSource.acceptsLight(tempLocation, x, y)) {

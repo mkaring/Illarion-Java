@@ -18,6 +18,9 @@
  */
 package illarion.common.types;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Serializable;
 
 /**
@@ -25,8 +28,8 @@ import java.io.Serializable;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class Rectangle
-        implements Serializable {
+@NotThreadSafe
+public final class Rectangle implements Serializable {
     /**
      * Serialization UID of this rectangle class.
      */
@@ -62,7 +65,7 @@ public final class Rectangle
         set(x, y, width, height);
     }
 
-    public Rectangle(final Rectangle other) {
+    public Rectangle(@Nonnull final Rectangle other) {
         x0 = other.x0;
         x1 = other.x1;
         y0 = other.y0;
@@ -74,6 +77,7 @@ public final class Rectangle
      *
      * @return the rectangle method that is free for use.
      */
+    @Nonnull
     @Deprecated
     public static Rectangle getInstance() {
         return new Rectangle();
@@ -84,7 +88,7 @@ public final class Rectangle
      *
      * @param other the rectangle that shall be added to the current instance
      */
-    public void add(final Rectangle other) {
+    public void add(@Nonnull final Rectangle other) {
         if (isEmpty()) {
             set(other);
             return;
@@ -105,7 +109,7 @@ public final class Rectangle
      * @return <code>true</code> in case this rectangle and the other one descripe the same rectangle
      */
     @Override
-    public boolean equals(final Object o) {
+    public boolean equals(@Nullable final Object o) {
         if (super.equals(o)) {
             return true;
         }
@@ -249,7 +253,7 @@ public final class Rectangle
      *
      * @param other the other rectangle
      */
-    public void intersect(final Rectangle other) {
+    public void intersect(@Nonnull final Rectangle other) {
         x0 = Math.max(x0, other.x0);
         y0 = Math.max(y0, other.y0);
         x1 = Math.min(x1, other.x1);
@@ -266,7 +270,7 @@ public final class Rectangle
      * @param other the second rectangle
      * @return <code>true</code> in case there is an intersection
      */
-    public boolean intersects(final Rectangle other) {
+    public boolean intersects(@Nonnull final Rectangle other) {
         if ((x0 > other.x1) || (x1 < other.x0)) {
             return false;
         }
@@ -333,7 +337,7 @@ public final class Rectangle
      *
      * @param org the rectangle that shall be copied
      */
-    public void set(final Rectangle org) {
+    public void set(@Nonnull final Rectangle org) {
         x0 = org.x0;
         x1 = org.x1;
         y0 = org.y0;
@@ -345,6 +349,7 @@ public final class Rectangle
      *
      * @return the java.awt.Rectangle that represents the same rectangle as this one
      */
+    @Nonnull
     public java.awt.Rectangle toNative() {
         return new java.awt.Rectangle(x0, y0, x1 - x0, y1 - y0);
     }

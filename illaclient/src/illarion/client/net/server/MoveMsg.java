@@ -21,13 +21,14 @@ package illarion.client.net.server;
 import illarion.client.net.CommandList;
 import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.world.Char;
-import illarion.client.world.PlayerMovement;
+import illarion.client.world.CharMovementMode;
 import illarion.client.world.World;
 import illarion.common.net.NetCommReader;
 import illarion.common.types.CharacterId;
 import illarion.common.types.Location;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
@@ -37,8 +38,7 @@ import java.io.IOException;
  * @author Nop
  */
 @ReplyMessage(replyId = CommandList.MSG_MOVE)
-public final class MoveMsg
-        extends AbstractReply {
+public final class MoveMsg extends AbstractReply {
     /**
      * The instance of the logger that is used to write out the data.
      */
@@ -72,18 +72,18 @@ public final class MoveMsg
     /**
      * The new location of the character.
      */
-    private transient Location loc;
+    private Location loc;
 
     /**
      * The moving mode of the character. Valid values are {@link #MODE_NO_MOVE}, {@link #MODE_MOVE}, {@link
      * #MODE_PUSH}.
      */
-    private short mode;
+    private int mode;
 
     /**
      * The moving speed of the character.
      */
-    private short speed;
+    private int speed;
 
     /**
      * Decode the character move data the receiver got and prepare it for the execution.
@@ -93,7 +93,7 @@ public final class MoveMsg
      * @see illarion.client.net.server.AbstractReply#decode(NetCommReader)
      */
     @Override
-    public void decode(final NetCommReader reader)
+    public void decode(@Nonnull final NetCommReader reader)
             throws IOException {
         charId = new CharacterId(reader);
         loc = decodeLocation(reader);
@@ -115,13 +115,19 @@ public final class MoveMsg
         }
 
         if (World.getPlayer().isPlayer(charId)) {
-            int moveMode = PlayerMovement.MOVE_MODE_NONE;
-            if (mode == MODE_MOVE) {
-                moveMode = PlayerMovement.MOVE_MODE_WALK;
-            } else if (mode == MODE_PUSH) {
-                moveMode = PlayerMovement.MOVE_MODE_PUSH;
-            } else if (mode == MODE_RUN) {
-                moveMode = PlayerMovement.MOVE_MODE_RUN;
+            final CharMovementMode moveMode;
+            switch (mode) {
+                case MODE_MOVE:
+                    moveMode = CharMovementMode.Walk;
+                    break;
+                case MODE_PUSH:
+                    moveMode = CharMovementMode.Push;
+                    break;
+                case MODE_RUN:
+                    moveMode = CharMovementMode.Run;
+                    break;
+                default:
+                    moveMode = CharMovementMode.None;
             }
             World.getPlayer().getMovementHandler().acknowledgeMove(moveMode, loc, speed);
             return true;
@@ -139,15 +145,14 @@ public final class MoveMsg
                 chara.setLocation(loc);
                 break;
             case MODE_MOVE:
-                chara.moveTo(loc, Char.MOVE_WALK, speed);
+                chara.moveTo(loc, CharMovementMode.Walk, speed);
                 break;
             case MODE_RUN:
-                chara.moveTo(loc, Char.MOVE_RUN, speed);
+                chara.moveTo(loc, CharMovementMode.Run, speed);
                 break;
             default:
-                chara.moveTo(loc, Char.MOVE_PUSH, 0);
+                chara.moveTo(loc, CharMovementMode.Push, 0);
         }
-
         return true;
     }
 
@@ -156,6 +161,7 @@ public final class MoveMsg
      *
      * @return the string that contains the values that were decoded for this message
      */
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {

@@ -20,7 +20,11 @@ package illarion.client.net.client;
 
 import illarion.client.net.CommandList;
 import illarion.common.net.NetCommWriter;
+import illarion.common.types.ItemCount;
 import illarion.common.types.Location;
+
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.Immutable;
 
 /**
  * Client Command: Dragging a item from a inventory slot to the game map ({@link CommandList#CMD_DRAG_INV_MAP}).
@@ -28,84 +32,39 @@ import illarion.common.types.Location;
  * @author Nop
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@Immutable
 public final class DragInvMapCmd extends AbstractDragCommand {
     /**
      * The location on the map that is the target of the move operation.
      */
-    private final transient Location dstLoc;
+    @Nonnull
+    private final Location dstLoc;
 
     /**
      * Inventory position the drag starts at.
      */
-    private byte srcPos;
+    private final short srcPos;
 
     /**
      * Default constructor for the dragging from inventory to map command.
      */
-    public DragInvMapCmd() {
-        super(CommandList.CMD_DRAG_INV_MAP);
-        dstLoc = new Location();
+    public DragInvMapCmd(final int source, @Nonnull final Location destination, @Nonnull final ItemCount count) {
+        super(CommandList.CMD_DRAG_INV_MAP, count);
+        srcPos = (short) source;
+        dstLoc = new Location(destination);
     }
 
-    /**
-     * Create a duplicate of this dragging from inventory to map command.
-     *
-     * @return new instance of this command
-     */
     @Override
-    public DragInvMapCmd clone() {
-        return new DragInvMapCmd();
-    }
-
-    /**
-     * Encode the data of this dragging from inventory to map command and put
-     * the values into the buffer.
-     *
-     * @param writer the interface that allows writing data to the network
-     *               communication system
-     */
-    @Override
-    public void encode(final NetCommWriter writer) {
-        writer.writeByte(srcPos);
+    public void encode(@Nonnull final NetCommWriter writer) {
+        writer.writeUByte(srcPos);
         writer.writeLocation(dstLoc);
         getCount().encode(writer);
     }
 
-    /**
-     * Set the source inventory slot of this dragging event. When this function
-     * is executed also the value of the counter is stored automatically.
-     *
-     * @param dragSrcPos slot number of the inventory slot where the drag
-     *                   started
-     */
-    public void setDragFrom(final int dragSrcPos) {
-        srcPos = (byte) dragSrcPos;
-    }
-
-    /**
-     * The the location on the map that is the target of the dragging operation.
-     *
-     * @param newLoc the location the object is dragged to
-     */
-    public void setDragTo(final Location newLoc) {
-        dstLoc.set(newLoc);
-    }
-
-    /**
-     * Get the data of this dragging from inventory to map command as string.
-     *
-     * @return the data of this command as string
-     */
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {
-        final StringBuilder builder = new StringBuilder();
-        builder.append("Source: ");
-        builder.append(srcPos);
-        builder.append(" Destination: ");
-        builder.append(dstLoc.toString());
-        builder.append(" Counter: ");
-        builder.append(getCount());
-        return toString(builder.toString());
+        return toString("Source: " + srcPos + " Destination: " + dstLoc + ' ' + getCount());
     }
 }

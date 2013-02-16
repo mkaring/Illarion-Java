@@ -1,4 +1,8 @@
-#version 120
+#version 110
+
+#ifdef GL_ES
+precision mediump float;
+#endif
 
 // the texture to render (this is the game screen)
 uniform sampler2D texBack;
@@ -31,28 +35,23 @@ uniform float windDir;
 
 uniform float gustStrength;
 
+uniform vec2 mapOffset;
+
 // its PI!
 const float pi = 3.14159265;
 
 float getIntensity() {
-    float aniPos = mod(gl_TexCoord[0].s + gustAnimation * sign(-windDir) + gl_TexCoord[0].t * -windDir, 1.f);
+    float aniPos = mod(gl_TexCoord[0].s + gustAnimation * sign(-windDir) + gl_TexCoord[0].t * -windDir, 1.0);
 	float gustEffect = sin(aniPos * pi) * gustStrength;
-	return clamp(intensity + (intensity * gustEffect), 0.f, 1.f);
+	return clamp(intensity + (intensity * gustEffect), 0.0, 1.0);
 }
 
-vec2 getRainCoord(in float offset) {
-    vec2 scaledTexCoord = (gl_TexCoord[0].st) * texRainScale.xy;
-    vec2 aniCoord = vec2(offset + (gl_TexCoord[0].t * windDir * -2.f), (-animation + offset) * texRainScale.y);
-    vec2 result =  texRainOffset + mod(scaledTexCoord + aniCoord, texRainSize.xy);
+vec2 getRainCoord() {
+    vec2 scaledTexCoord = gl_TexCoord[0].st * texRainScale.xy;
+    vec2 aniCoord = vec2(gl_TexCoord[0].t * windDir * -2.0, -animation * texRainScale.y);
+    vec2 result = texRainOffset + mod(scaledTexCoord + aniCoord + mapOffset, texRainSize.xy);
 
     return result;
-}
-
-vec3 getRainColor(in vec3 color, in float value, in float levelIntensity) {
-    float rainTexColor = 1.f - texture2D(texRain, getRainCoord(value)).r;
-	float rainColor = clamp(rainTexColor * levelIntensity, 0.f, 1.f);
-	
-	return vec3(color.rgb * (1.f - rainColor) + rainDropColor.rgb * rainColor);
 }
 
 void main() {
@@ -61,20 +60,16 @@ void main() {
     float intensity = getIntensity();
 
     vec3 resultColor = backColor.rgb;
-	bool skipNext = true;
-	for (int level = 0; level < 3; level += 1) {
-		float stepSize = 1.f / pow(level + 1.f, 2.f);
-		skipNext = true;
-		float levelIntensity = clamp(0.3f + intensity * 3.f - sqrt(float(level)), 0.f, 1.f);
-		for (float value = 0.f; value < 1.f; value += stepSize) {
-			if (skipNext) {
-				skipNext = false;
-			} else {
-				resultColor = getRainColor(resultColor, value, levelIntensity);
-				skipNext = true;
-			}
-		}
-	}
 
-    gl_FragColor = vec4(resultColor, 1.f);
+    float levelIntensityR = clamp(0.3 + intensity * 2.0, 0.0, 1.0);
+    float levelIntensityG = clamp(0.3 + intensity * 2.0 - 1.0, 0.0, 1.0);
+    float levelIntensityB = clamp(0.3 + intensity * 2.0 - 1.4, 0.0, 1.0);
+
+    vec3 levelIntensity = vec3(levelIntensityR, levelIntensityG, levelIntensityB);
+    float rainTexColor = dot(texture2D(texRain, getRainCoord()).rgb, levelIntensity);
+	rainTexColor = clamp(rainTexColor - gl_TexCoord[0].t * 0.2, 0.0, 1.0);
+
+    resultColor.rgb = resultColor.rgb * (1.0 - rainTexColor) + rainDropColor.rgb * rainTexColor;
+
+    gl_FragColor = vec4(resultColor, 1.0);
 }

@@ -21,13 +21,15 @@ package illarion.easynpc.data;
 import org.fife.ui.rsyntaxtextarea.Token;
 import org.fife.ui.rsyntaxtextarea.TokenMap;
 
+import javax.annotation.Nonnull;
+
 /**
  * This enumerator contains the possible values for the language the character is speaking.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
 public enum CharacterLanguage {
-    ancient(10), common(0), dwarf(2), elf(3), halfling(5), human(1),
+    ancient(10), common(0), dwarf(2), elf(3), halfling(6), human(1),
     lizard(4), orc(5);
 
     /**
@@ -59,7 +61,7 @@ public enum CharacterLanguage {
      *
      * @param map the map that stores the tokens
      */
-    public static void enlistHighlightedWords(final TokenMap map) {
+    public static void enlistHighlightedWords(@Nonnull final TokenMap map) {
         for (CharacterLanguage language : CharacterLanguage.values()) {
             map.put(language.name(), Token.VARIABLE);
         }

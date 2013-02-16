@@ -20,6 +20,10 @@ package illarion.client.net.client;
 
 import illarion.client.net.CommandList;
 import illarion.common.net.NetCommWriter;
+import illarion.common.types.ItemCount;
+
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.Immutable;
 
 /**
  * Client Command: Dragging a item from one inventory slot to another ({@link CommandList#CMD_DRAG_INV_INV}).
@@ -27,78 +31,44 @@ import illarion.common.net.NetCommWriter;
  * @author Nop
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@Immutable
 public final class DragInvInvCmd extends AbstractDragCommand {
     /**
      * The inventory position the drag ends at.
      */
-    private byte dstPos;
+    private final short dstPos;
 
     /**
      * The inventory position the drag starts at.
      */
-    private byte srcPos;
+    private final short srcPos;
 
     /**
      * Default constructor for the dragging from inventory to inventory command.
+     *
+     * @param source      the inventory position where the drag starts
+     * @param destination the inventory position where the drag ends
+     * @param count       the amount of items to drag
      */
-    public DragInvInvCmd() {
-        super(CommandList.CMD_DRAG_INV_INV);
+    public DragInvInvCmd(final int source, final int destination, @Nonnull final ItemCount count) {
+        super(CommandList.CMD_DRAG_INV_INV, count);
+
+        srcPos = (short) source;
+        dstPos = (short) destination;
     }
 
-    /**
-     * Create a duplicate of this dragging from inventory to inventory command.
-     *
-     * @return new instance of this command
-     */
     @Override
-    public DragInvInvCmd clone() {
-        return new DragInvInvCmd();
-    }
-
-    /**
-     * Encode the data of this dragging from inventory to inventory command and
-     * put the values into the buffer.
-     *
-     * @param writer the interface that allows writing data to the network
-     *               communication system
-     */
-    @Override
-    public void encode(final NetCommWriter writer) {
-        writer.writeByte(srcPos);
-        writer.writeByte(dstPos);
+    public void encode(@Nonnull final NetCommWriter writer) {
+        writer.writeUByte(srcPos);
+        writer.writeUByte(dstPos);
         getCount().encode(writer);
     }
 
-    /**
-     * Set the source and the destination inventory slot of this dragging event.
-     * When this function is executed also the value of the counter is stored
-     * automatically.
-     *
-     * @param dragSrcPos slot number of the inventory slot where the drag
-     *                   started
-     * @param dragDstPos slot number of the inventory slot where the drag ended
-     */
-    public void setDrag(final int dragSrcPos, final int dragDstPos) {
-        srcPos = (byte) dragSrcPos;
-        dstPos = (byte) dragDstPos;
-    }
 
-    /**
-     * Get the data of this dragging from inventory to inventory command as
-     * string.
-     *
-     * @return the data of this command as string
-     */
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {
-        final StringBuilder builder = new StringBuilder();
-        builder.append("Source: ");
-        builder.append(srcPos);
-        builder.append(" Destination: ");
-        builder.append(dstPos);
-        builder.append(" Counter: ");
-        builder.append(getCount());
-        return toString(builder.toString());
+        return toString("Source: " + srcPos + " Destination: " + dstPos + ' ' + getCount());
     }
 }

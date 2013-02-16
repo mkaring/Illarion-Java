@@ -21,152 +21,55 @@ package illarion.client.net.client;
 import illarion.client.net.CommandList;
 import illarion.common.net.NetCommWriter;
 
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.Immutable;
+
 /**
- * This command is used for any interaction with the crafting menu.
+ * This command is used to craft a item from a crafting dialog.
  *
  * @author Martin Karing &gt;nitram@illarion.org&lt;
  */
+@Immutable
 public final class CraftItemCmd extends AbstractCommand {
-    /**
-     * This enumerator contains the possible action values of this class.
-     */
-    private enum Action {
-        /**
-         * Look at a item that can be crafted.
-         */
-        lookAtItem,
-
-        /**
-         * Look at a ingredient that is needed.
-         */
-        lookAtIngredient,
-
-        /**
-         * This value is used in case crafting a item is started
-         */
-        craft,
-
-        /**
-         * This value is used for the action to close the dialog ID.
-         */
-        close;
-    }
-
     /**
      * The ID of the dialog to interact with.
      */
-    private int dialogId = -1;
+    private final int dialogId;
 
     /**
      * The index of the item in the crafting list that is referred to.
      */
-    private int craftingIndex;
+    private final int craftingIndex;
 
     /**
      * The amount of items to be crafted.
      */
-    private int amount;
-
-    /**
-     * The index of the ingredient that is referred to.
-     */
-    private int ingredientIndex;
-
-    /**
-     * The selected action.
-     */
-    private CraftItemCmd.Action selectedAction = CraftItemCmd.Action.lookAtItem;
+    private final int amount;
 
     /**
      * Default constructor for the trade item command.
+     *
+     * @param dialogId      the dialog ID of the dialog to craft a item from
+     * @param craftingIndex the index of the item to craft
+     * @param amount        the amount of items to create as a batch
      */
-    public CraftItemCmd() {
+    public CraftItemCmd(final int dialogId, final int craftingIndex, final int amount) {
         super(CommandList.CMD_CRAFT_ITEM);
-    }
 
-    /**
-     * Set the ID of the dialog this command refers to.
-     *
-     * @param newId the ID of the dialog
-     */
-    public void setDialogId(final int newId) {
-        dialogId = newId;
-    }
-
-    /**
-     * Set this command to transfer a close operation. In case no further items are needed to be crafted and the dialog
-     * is closed, this has to be send.
-     */
-    public void setCloseDialog() {
-        selectedAction = CraftItemCmd.Action.close;
-    }
-
-    /**
-     * Craft a item.
-     *
-     * @param craftIndex the item of the item to be crafted
-     * @param craftCount the amount of items that are supposed to be created
-     */
-    public void setCraftItem(final int craftIndex, final int craftCount) {
-        selectedAction = CraftItemCmd.Action.craft;
-        craftingIndex = craftIndex;
-        amount = craftCount;
-    }
-
-    /**
-     * Look at a item to craft at.
-     *
-     * @param craftIndex the item you want to look at
-     */
-    public void setLookAtItem(final int craftIndex) {
-        selectedAction = CraftItemCmd.Action.lookAtItem;
-        craftingIndex = craftIndex;
-    }
-
-    /**
-     * Set the command to look at a ingredient.
-     *
-     * @param craftIndex      the item you want to look at
-     * @param ingredientIndex the index of the ingredient to look at
-     */
-    public void setLookAtIngredient(final int craftIndex, final int ingredientIndex) {
-        selectedAction = CraftItemCmd.Action.lookAtIngredient;
-        craftingIndex = craftIndex;
-        this.ingredientIndex = ingredientIndex;
+        this.dialogId = dialogId;
+        this.craftingIndex = craftingIndex;
+        this.amount = amount;
     }
 
     @Override
-    public CraftItemCmd clone() {
-        return new CraftItemCmd();
-    }
-
-    @Override
-    public void encode(final NetCommWriter writer) {
-        if (dialogId == -1) {
-            throw new IllegalStateException("Dialog ID was not set properly.");
-        }
+    public void encode(@Nonnull final NetCommWriter writer) {
         writer.writeInt(dialogId);
-        switch (selectedAction) {
-            case close:
-                writer.writeByte((byte) 0);
-                break;
-            case craft:
-                writer.writeByte((byte) 1);
-                writer.writeUByte((short) craftingIndex);
-                writer.writeUByte((short) amount);
-                break;
-            case lookAtItem:
-                writer.writeByte((byte) 2);
-                writer.writeUByte((short) craftingIndex);
-                break;
-            case lookAtIngredient:
-                writer.writeByte((byte) 3);
-                writer.writeUByte((short) craftingIndex);
-                writer.writeUByte((short) ingredientIndex);
-                break;
-        }
+        writer.writeByte((byte) 1);
+        writer.writeUByte((short) craftingIndex);
+        writer.writeUByte((short) amount);
     }
 
+    @Nonnull
     @Override
     public String toString() {
         return toString("dialog ID: " + dialogId);

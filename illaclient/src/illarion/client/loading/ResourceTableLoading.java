@@ -21,9 +21,11 @@ package illarion.client.loading;
 import illarion.client.graphics.shader.ShaderManager;
 import illarion.client.resources.*;
 import illarion.client.resources.loaders.*;
-import illarion.client.world.World;
+import illarion.client.util.GlobalExecutorService;
 import org.newdawn.slick.loading.DeferredResource;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,13 +50,12 @@ public final class ResourceTableLoading implements DeferredResource {
         taskList.add(new CharacterLoader().setTarget(CharacterFactory.getInstance()));
         taskList.add(new ClothLoader().setTarget(new ClothFactoryRelay()));
         taskList.add(new EffectLoader().setTarget(EffectFactory.getInstance()));
-        taskList.add(new RuneLoader().setTarget(RuneFactory.getInstance()));
-        taskList.add(new GuiImageLoader().setTarget(GuiImageFactory.getInstance()));
+        taskList.add(new MiscImageLoader().setTarget(MiscImageFactory.getInstance()));
         taskList.add(new BookLoader().setTarget(BookFactory.getInstance()));
 
         try {
-            World.getExecutorService().invokeAll(taskList);
-        } catch (final InterruptedException e) {
+            GlobalExecutorService.getService().invokeAll(taskList);
+        } catch (@Nonnull final InterruptedException e) {
             throw new IOException(e);
         }
 
@@ -64,6 +65,7 @@ public final class ResourceTableLoading implements DeferredResource {
     /**
      * Get a human readable description for this task.
      */
+    @Nullable
     @Override
     public String getDescription() {
         return null;

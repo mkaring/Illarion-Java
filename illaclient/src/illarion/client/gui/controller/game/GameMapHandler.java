@@ -30,19 +30,25 @@ import de.lessvoid.nifty.screen.ScreenController;
 import de.lessvoid.nifty.tools.SizeValue;
 import illarion.client.graphics.Camera;
 import illarion.client.graphics.Item;
+import illarion.client.graphics.MapInteractionEvent;
 import illarion.client.gui.EntitySlickRenderImage;
+import illarion.client.gui.GameMapGui;
+import illarion.client.gui.Tooltip;
 import illarion.client.input.*;
-import illarion.client.net.server.events.MapItemLookAtEvent;
 import illarion.client.world.MapTile;
 import illarion.client.world.World;
 import illarion.client.world.interactive.InteractionManager;
 import illarion.client.world.interactive.InteractiveMapTile;
 import illarion.common.types.ItemCount;
+import illarion.common.types.Location;
 import illarion.common.types.Rectangle;
+import org.apache.log4j.Logger;
 import org.bushe.swing.event.annotation.AnnotationProcessor;
 import org.bushe.swing.event.annotation.EventSubscriber;
-import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Input;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * This class is used to monitor all dropping operations on the droppable area over the game map and notify the
@@ -50,16 +56,7 @@ import org.newdawn.slick.Input;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class GameMapHandler
-        implements ScreenController, UpdatableHandler {
-
-    private Input input;
-
-    @Override
-    public void update(final GameContainer container, final int delta) {
-        input = container.getInput();
-    }
-
+public final class GameMapHandler implements GameMapGui, ScreenController {
     /**
      * This class is used as end operation to the dragging that started on the map. It takes care that the elements
      * used
@@ -85,7 +82,7 @@ public final class GameMapHandler
          * @param draggedElement  the dragged element
          * @param returnToElement the element the dragged element needs to return to
          */
-        public GameMapDragEndOperation(final Element draggedElement, final Element returnToElement) {
+        GameMapDragEndOperation(final Element draggedElement, final Element returnToElement) {
             drag = draggedElement;
             returnTo = returnToElement;
         }
@@ -98,8 +95,14 @@ public final class GameMapHandler
             drag.setVisible(false);
             drag.markForMove(returnTo);
         }
-
     }
+
+    /**
+     * The logging instance that handles the logging output of this class.
+     */
+    private static final Logger LOGGER = Logger.getLogger(GameMapHandler.class);
+    @Nonnull
+    private final Input input;
 
     /**
      * The Nifty-GUI instance that is handling the GUI display currently.
@@ -114,6 +117,7 @@ public final class GameMapHandler
     /**
      * This mouse event instance is used to initiate the dragging event.
      */
+    @Nonnull
     private final NiftyMouseInputEvent mouseEvent;
 
     /**
@@ -139,86 +143,92 @@ public final class GameMapHandler
     private Runnable endOfDragOp;
     private final NumberSelectPopupHandler numberSelect;
 
+    private final TooltipHandler tooltipHandler;
+
     /**
      * Default constructor that takes care to initialize the variables required for this class to work.
      */
-    public GameMapHandler(final NumberSelectPopupHandler numberSelectPopupHandler, final TooltipHandler tooltip) {
+    public GameMapHandler(@Nonnull final Input input, final NumberSelectPopupHandler numberSelectPopupHandler,
+                          final TooltipHandler tooltip) {
         mouseEvent = new NiftyMouseInputEvent();
         numberSelect = numberSelectPopupHandler;
         tooltipHandler = tooltip;
-    }
-
-    public void bind(final Nifty nifty, final Screen screen) {
-        activeNifty = nifty;
-        activeScreen = screen;
-        gamePanel = screen.findElementByName("gamePanel");
-        draggedGraphic = gamePanel.findElementByName("mapDragObject");
-        draggedImage = draggedGraphic.findElementByName("mapDragImage");
-        endOfDragOp = new GameMapDragEndOperation(draggedGraphic, gamePanel);
-    }
-
-    @Override
-    public void onStartScreen() {
-        activeNifty.subscribeAnnotations(this);
-        AnnotationProcessor.process(this);
-    }
-
-    @Override
-    public void onEndScreen() {
-        activeNifty.unsubscribeAnnotations(this);
-        AnnotationProcessor.unprocess(this);
-    }
-
-    private boolean isShiftPressed() {
-        return (input != null) && (input.isKeyDown(Input.KEY_LSHIFT) || input.isKeyDown(Input.KEY_RSHIFT));
+        this.input = input;
     }
 
     /**
-     * Called in case something is dropped on the game map.
+     * Handle a input event that was published.
      */
-    @NiftyEventSubscriber(id = "mapDropTarget")
-    public void dropOnMap(final String topic, final DroppableDroppedEvent data) {
-        final Element droppedElement = data.getDraggable().getElement();
-        final int dropSpotX = droppedElement.getX() + (droppedElement.getWidth() / 2);
-        final int dropSpotY = droppedElement.getY() + (droppedElement.getHeight() / 2);
+    @EventSubscriber(eventClass = ClickOnMapEvent.class)
+    public void handleClickEvent(final MapInteractionEvent data) {
+        World.getMapDisplay().publishInteractionEvent(data);
+    }
 
-        final ItemCount amount = World.getInteractionManager().getMovedAmount();
-        final InteractionManager iManager = World.getInteractionManager();
-        if (ItemCount.isGreaterOne(amount) && isShiftPressed()) {
-            numberSelect.requestNewPopup(1, amount.getValue(), new NumberSelectPopupHandler.Callback() {
-                @Override
-                public void popupCanceled() {
-                    // nothing
-                }
+    /**
+     * Handle a input event that was published.
+     */
+    @EventSubscriber(eventClass = DoubleClickOnMapEvent.class)
+    public void handleDoubleClick(final MapInteractionEvent data) {
+        World.getMapDisplay().publishInteractionEvent(data);
+    }
 
-                @Override
-                public void popupConfirmed(final int value) {
-                    iManager.dropAtMap(dropSpotX, dropSpotY, ItemCount.getInstance(value));
-                }
-            });
-        } else {
-            iManager.dropAtMap(dropSpotX, dropSpotY, World.getInteractionManager().getMovedAmount());
+    /**
+     * Handle a input event that was published.
+     */
+    @EventSubscriber(eventClass = DragOnMapEvent.class)
+    public void handleDragging(@Nonnull final DragOnMapEvent data) {
+        if (World.getInteractionManager().isDragging()) {
+            return;
+        }
+
+        switch (data.getKey()) {
+            case 0:
+                handlePrimaryKeyDrag(data);
+                break;
         }
     }
 
-    public boolean handleDragOnMap(final PrimaryKeyMapDrag event, final MapTile mapTile) {
+    /**
+     * Handle dragging events from the primary mouse key.
+     *
+     * @param data the event data
+     */
+    public void handlePrimaryKeyDrag(@Nonnull final DragOnMapEvent data) {
+        if (!World.getPlayer().getMovementHandler().isMouseMovementActive()) {
+            final MapInteractionEvent newEvent = new PrimaryKeyMapDrag(data, new PrimaryKeyMapDrag.PrimaryKeyMapDragCallback() {
+                @Override
+                public boolean startDraggingItemFromTile(@Nonnull final PrimaryKeyMapDrag event, final MapTile tile) {
+                    return handleDragOnMap(event, tile);
+                }
+
+                @Override
+                public void notHandled(@Nonnull final PrimaryKeyMapDrag event) {
+                    moveTowardsMouse(event);
+                }
+            });
+            World.getMapDisplay().publishInteractionEvent(newEvent);
+            return;
+        }
+
+
+        moveTowardsMouse(data);
+    }
+
+    public boolean handleDragOnMap(@Nonnull final PrimaryKeyMapDrag event, @Nullable final MapTile mapTile) {
         if (mapTile == null) {
             return false;
         }
         final InteractiveMapTile targetTile = mapTile.getInteractive();
-
-        if (targetTile == null) {
-            return false;
-        }
 
         if (!targetTile.canDrag()) {
             return false;
         }
 
         if ((activeScreen != null) && (activeNifty != null)) {
-            final Item movedItem = targetTile.getTopImage();
-            final int width = movedItem.getGuiTexture().getWidth();
-            final int height = movedItem.getGuiTexture().getHeight();
+            final Item movedItem = targetTile.getTopItem();
+            assert movedItem != null;
+            final int width = movedItem.getTemplate().getGuiTexture().getWidth();
+            final int height = movedItem.getTemplate().getGuiTexture().getHeight();
 
             draggedGraphic.resetLayout();
             draggedGraphic.setConstraintWidth(SizeValue.px(width));
@@ -232,7 +242,7 @@ public final class GameMapHandler
             draggedImage.setHeight(height);
 
             final ImageRenderer imgRender = draggedImage.getRenderer(ImageRenderer.class);
-            imgRender.setImage(new NiftyImage(activeNifty.getRenderEngine(), new EntitySlickRenderImage(movedItem)));
+            imgRender.setImage(new NiftyImage(activeNifty.getRenderEngine(), new EntitySlickRenderImage(movedItem.getTemplate())));
 
             gamePanel.layoutElements();
             event.getForwardingControl().releaseExclusiveMouse();
@@ -255,98 +265,97 @@ public final class GameMapHandler
      *
      * @param event the event that contains the data for the move
      */
-    private void moveTowardsMouse(final DragOnMapEvent event) {
+    private static void moveTowardsMouse(@Nonnull final DragOnMapEvent event) {
         World.getPlayer().getMovementHandler().walkTowards(event.getNewX(), event.getNewY());
         event.getForwardingControl().requestExclusiveMouse();
     }
 
-    /**
-     * Handle a input event that was published.
-     */
-    @EventSubscriber
-    public void handleDragging(final DragOnMapEvent data) {
+    @EventSubscriber(eventClass = MoveOnMapEvent.class)
+    public void handleMouseMove(final MapInteractionEvent event) {
         if (World.getInteractionManager().isDragging()) {
             return;
         }
-
-        switch (data.getKey()) {
-            case 0:
-                handlePrimaryKeyDrag(data);
-                break;
+        if (World.getPlayer().getMovementHandler().isMouseMovementActive()) {
+            return;
         }
+
+        World.getMapDisplay().publishInteractionEvent(event);
+    }
+
+    @EventSubscriber(eventClass = PointOnMapEvent.class)
+    public void handlePointAt(final MapInteractionEvent event) {
+        if (World.getInteractionManager().isDragging()) {
+            return;
+        }
+        if (World.getPlayer().getMovementHandler().isMouseMovementActive()) {
+            return;
+        }
+
+        World.getMapDisplay().publishInteractionEvent(event);
     }
 
     /**
-     * Handle dragging events from the primary mouse key.
-     *
-     * @param data the event data
+     * Called in case something is dropped on the game map.
      */
-    public void handlePrimaryKeyDrag(final DragOnMapEvent data) {
-        if (!World.getPlayer().getMovementHandler().isMouseMovementActive()) {
-            final PrimaryKeyMapDrag newEvent = new PrimaryKeyMapDrag(data, new PrimaryKeyMapDrag.PrimaryKeyMapDragCallback() {
+    @NiftyEventSubscriber(id = "mapDropTarget")
+    public void dropOnMap(final String topic, @Nonnull final DroppableDroppedEvent data) {
+        final Element droppedElement = data.getDraggable().getElement();
+        final int dropSpotX = droppedElement.getX() + (droppedElement.getWidth() / 2);
+        final int dropSpotY = droppedElement.getY() + (droppedElement.getHeight() / 2);
+
+        final ItemCount amount = World.getInteractionManager().getMovedAmount();
+        final InteractionManager iManager = World.getInteractionManager();
+        if (amount == null) {
+            LOGGER.error("Corrupted drag detected!");
+            iManager.cancelDragging();
+            return;
+        }
+        if (ItemCount.isGreaterOne(amount) && isShiftPressed()) {
+            numberSelect.requestNewPopup(1, amount.getValue(), new NumberSelectPopupHandler.Callback() {
                 @Override
-                public boolean startDraggingItemFromTile(final PrimaryKeyMapDrag event, final MapTile tile) {
-                    return handleDragOnMap(event, tile);
+                public void popupCanceled() {
+                    // nothing
                 }
 
                 @Override
-                public void notHandled(final PrimaryKeyMapDrag event) {
-                    moveTowardsMouse(event);
+                public void popupConfirmed(final int value) {
+                    iManager.dropAtMap(dropSpotX, dropSpotY, ItemCount.getInstance(value));
                 }
             });
-            World.getMapDisplay().publishInteractionEvent(newEvent);
-            return;
+        } else {
+            iManager.dropAtMap(dropSpotX, dropSpotY, amount);
         }
-
-
-        moveTowardsMouse(data);
     }
 
-    /**
-     * Handle a input event that was published.
-     */
-    @EventSubscriber
-    public void handleClickEvent(final ClickOnMapEvent data) {
-        World.getMapDisplay().publishInteractionEvent(data);
+    private boolean isShiftPressed() {
+        return input.isKeyDown(Input.KEY_LSHIFT) || input.isKeyDown(Input.KEY_RSHIFT);
     }
 
-    @EventSubscriber
-    public void handlePointAt(final PointOnMapEvent event) {
-        if (World.getInteractionManager().isDragging()) {
-            return;
-        }
-        if (World.getPlayer().getMovementHandler().isMouseMovementActive()) {
-            return;
-        }
-
-        World.getMapDisplay().publishInteractionEvent(event);
+    @Override
+    public void bind(final Nifty nifty, @Nonnull final Screen screen) {
+        activeNifty = nifty;
+        activeScreen = screen;
+        gamePanel = screen.findElementByName("gamePanel");
+        draggedGraphic = gamePanel.findElementByName("mapDragObject");
+        draggedImage = draggedGraphic.findElementByName("mapDragImage");
+        endOfDragOp = new GameMapDragEndOperation(draggedGraphic, gamePanel);
     }
 
-    @EventSubscriber
-    public void handleMouseMove(final MoveOnMapEvent event) {
-        if (World.getInteractionManager().isDragging()) {
-            return;
-        }
-        if (World.getPlayer().getMovementHandler().isMouseMovementActive()) {
-            return;
-        }
-
-        World.getMapDisplay().publishInteractionEvent(event);
+    @Override
+    public void onEndScreen() {
+        activeNifty.unsubscribeAnnotations(this);
+        AnnotationProcessor.unprocess(this);
     }
 
-    /**
-     * Handle a input event that was published.
-     */
-    @EventSubscriber
-    public void handleDoubleClick(final DoubleClickOnMapEvent data) {
-        World.getMapDisplay().publishInteractionEvent(data);
+    @Override
+    public void onStartScreen() {
+        activeNifty.subscribeAnnotations(this);
+        AnnotationProcessor.process(this);
     }
 
-    private final TooltipHandler tooltipHandler;
-
-    @EventSubscriber
-    public void onMapItemLookAtEvent(final MapItemLookAtEvent event) {
-        final MapTile targetTile = World.getMap().getMapAt(event.getLocation());
+    @Override
+    public void showItemTooltip(@Nonnull final Location location, @Nonnull final Tooltip tooltip) {
+        final MapTile targetTile = World.getMap().getMapAt(location);
         if (targetTile == null) {
             return;
         }
@@ -359,6 +368,6 @@ public final class GameMapHandler
         final Rectangle originalDisplayRect = targetItem.getInteractionRect();
         final Rectangle fixedRectangle = new Rectangle(originalDisplayRect);
         fixedRectangle.move(-Camera.getInstance().getViewportOffsetX(), -Camera.getInstance().getViewportOffsetY());
-        tooltipHandler.showToolTip(fixedRectangle, event);
+        tooltipHandler.showToolTip(fixedRectangle, tooltip);
     }
 }

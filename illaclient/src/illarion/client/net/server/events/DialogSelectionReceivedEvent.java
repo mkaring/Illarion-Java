@@ -21,6 +21,7 @@ package illarion.client.net.server.events;
 import illarion.client.world.items.SelectionItem;
 import illarion.common.util.ArrayEnumeration;
 
+import javax.annotation.Nonnull;
 import java.util.Iterator;
 
 /**
@@ -78,17 +79,18 @@ public final class DialogSelectionReceivedEvent extends AbstractDialogReceivedEv
      *
      * @param index the index of the option
      * @return the option value
-     * @throws ArrayIndexOutOfBoundsException in case index is less then 0 or larger or equal to {@link
-     *                                        #getOptionCount()}.
+     * @throws IndexOutOfBoundsException in case index is less then 0 or larger or equal to {@link
+     *                                   #getOptionCount()}.
      */
     public SelectionItem getOption(final int index) {
         if ((index < 0) || (index >= options.length)) {
-            throw new ArrayIndexOutOfBoundsException();
+            throw new IndexOutOfBoundsException();
         }
 
         return options[index];
     }
 
+    @Nonnull
     @Override
     public Iterator<SelectionItem> iterator() {
         return new ArrayEnumeration<SelectionItem>(options);

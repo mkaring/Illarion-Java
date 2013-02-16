@@ -23,8 +23,11 @@ import de.lessvoid.nifty.render.NiftyImage;
 import illarion.client.gui.EntitySlickRenderImage;
 import illarion.client.resources.ItemFactory;
 import illarion.client.world.items.CraftingItem;
+import illarion.common.types.ItemCount;
 import illarion.common.types.ItemId;
 import org.illarion.nifty.controls.CraftingItemEntry;
+
+import javax.annotation.Nonnull;
 
 /**
  * Created with IntelliJ IDEA.
@@ -34,32 +37,37 @@ import org.illarion.nifty.controls.CraftingItemEntry;
  * To change this template use File | Settings | File Templates.
  */
 public class NiftyCraftingItem extends CraftingItem implements CraftingItemEntry {
+    @Nonnull
     private final NiftyImage craftImage;
+    @Nonnull
     private final NiftyImage[] ingredientImages;
 
-    public NiftyCraftingItem(final Nifty nifty, final int index, final CraftingItem org) {
+    public NiftyCraftingItem(@Nonnull final Nifty nifty, final int index, final CraftingItem org) {
         super(org);
 
         craftImage = new NiftyImage(nifty.getRenderEngine(),
-                new EntitySlickRenderImage(ItemFactory.getInstance().getPrototype(getItemId())));
+                new EntitySlickRenderImage(ItemFactory.getInstance().getTemplate(getItemId().getValue())));
 
         ingredientImages = new NiftyImage[getIngredientCount()];
         for (int i = 0; i < ingredientImages.length; i++) {
             ingredientImages[i] = new NiftyImage(nifty.getRenderEngine(),
-                    new EntitySlickRenderImage(ItemFactory.getInstance().getPrototype(getIngredientItemId(i))));
+                    new EntitySlickRenderImage(ItemFactory.getInstance().getTemplate(getIngredientItemId(i).getValue())));
         }
     }
 
+    @Nonnull
     @Override
     public ItemId getIngredientItemId(final int index) {
         return getIngredient(index).getItemId();
     }
 
+    @Nonnull
     @Override
-    public int getIngredientAmount(final int index) {
+    public ItemCount getIngredientAmount(final int index) {
         return getIngredient(index).getCount();
     }
 
+    @Nonnull
     @Override
     public NiftyImage getImage() {
         return craftImage;
@@ -75,6 +83,7 @@ public class NiftyCraftingItem extends CraftingItem implements CraftingItemEntry
         return (float) getBuildTime() / 10.f;
     }
 
+    @Nonnull
     @Override
     public NiftyImage getIngredientImage(final int index) {
         return ingredientImages[index];
@@ -85,6 +94,7 @@ public class NiftyCraftingItem extends CraftingItem implements CraftingItemEntry
      *
      * @return the text to display in the tree
      */
+    @Nonnull
     @Override
     public String getTreeLabel() {
         return getName();

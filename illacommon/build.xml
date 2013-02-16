@@ -68,7 +68,8 @@
         </resourcebuild>
     </target>
 
-    <target name="download_skills" depends="download_skills_dev,download_skills_release"/>
+    <target name="download_skills" depends="download_skills_dev,download_skills_release"
+            description="Download the skills file"/>
 
     <target name="download_skills_dev" unless="release.build">
         <get src="http://illarion.org/data/xml_skills.php?server=1" dest="${src}/skills.xml"/>
@@ -92,7 +93,9 @@
                 <fileset refid="tabsplitter"/>
                 <fileset refid="slick"/>
                 <fileset refid="nifty"/>
+                <fileset refid="jsr"/>
                 <fileset refid="eventbus"/>
+                <fileset refid="mantisconnect"/>
                 <pathelement path="${java.home}/lib"/>
             </classpath>
         </javac>
@@ -113,5 +116,6 @@
         </jar>
         <jar jarfile="${jar}" basedir="${src}" includes="public.key" update="true" index="${build.index}"/>
         <jar jarfile="${jar}" basedir="${src}" includes="skills.xml" update="true" index="${build.index}"/>
+        <jar jarfile="${jar}" basedir="${src}" includes="keystore.jks" update="true" index="${build.index}"/>
     </target>
 </project>

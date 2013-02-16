@@ -22,8 +22,12 @@ import illarion.client.crash.PathfinderCrashHandler;
 import illarion.common.types.Location;
 import illarion.common.util.Stoppable;
 import illarion.common.util.StoppableStorage;
-import javolution.util.FastComparator;
-import javolution.util.FastTable;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Pathfinder to search the best way between two locations. Using the A*-algorithm.
@@ -49,38 +53,37 @@ public final class Pathfinder
     private static final int MIN_MOVE_COST = 5;
 
     /**
-     * List of path nodes we tried already.
-     */
-    private FastTable<PathNode> closed;
-
-    /**
      * The end location of the current path finding action.
      */
+    @Nonnull
     private final Location endLoc;
 
     /**
      * List of path nodes that were not considered fully for searching yet.
      */
-    private FastTable<PathNode> open;
+    @Nonnull
+    private final List<PathNode> open;
 
     /**
      * The class that is supposed to receive the generated path.
      */
-    private PathReceiver receiver = null;
+    @Nullable
+    private PathReceiver receiver;
 
     /**
      * The restart flag that is set true in case a new path shall be searched.
      */
-    private boolean restart = false;
+    private boolean restart;
 
     /**
      * The flag that stores of the thread is running or not.
      */
-    private boolean running = false;
+    private boolean running;
 
     /**
      * The start location of the current path finding action.
      */
+    @Nonnull
     private final Location startLoc;
 
     /**
@@ -94,6 +97,8 @@ public final class Pathfinder
         endLoc = new Location();
         startLoc = new Location();
 
+        open = new ArrayList<PathNode>();
+
         start();
         StoppableStorage.getInstance().add(this);
     }
@@ -103,7 +108,7 @@ public final class Pathfinder
      *
      * @return The instance of the pathfinder class.
      */
-    public synchronized static Pathfinder getInstance() {
+    public static synchronized Pathfinder getInstance() {
         if (instance == null) {
             instance = new Pathfinder();
             instance.setUncaughtExceptionHandler(PathfinderCrashHandler.getInstance());
@@ -114,7 +119,7 @@ public final class Pathfinder
     /**
      * Restart the pathfinder by creating a new instance and starting this one.
      */
-    public synchronized static void restartPathfinder() {
+    public static synchronized void restartPathfinder() {
         if (instance != null) {
             instance.saveShutdown();
             StoppableStorage.getInstance().remove(instance);
@@ -130,7 +135,7 @@ public final class Pathfinder
      * @param pathDest  the location where the path ends
      * @param pathRec   the class that receives the resulting path
      */
-    public void findPath(final Location pathStart, final Location pathDest, final PathReceiver pathRec) {
+    public void findPath(@Nonnull final Location pathStart, @Nonnull final Location pathDest, final PathReceiver pathRec) {
         startLoc.set(pathStart);
         endLoc.set(pathDest);
         receiver = pathRec;
@@ -157,8 +162,8 @@ public final class Pathfinder
             if (!searching && !restart) {
                 synchronized (this) {
                     try {
-                        this.wait();
-                    } catch (final InterruptedException e) {
+                        wait();
+                    } catch (@Nonnull final InterruptedException e) {
                         // nothing
                     }
                 }
@@ -172,13 +177,6 @@ public final class Pathfinder
                 if (searchEndLoc == null) {
                     searchEndLoc = new Location();
                 }
-                if (open == null) {
-                    open = FastTable.newInstance();
-                    open.setValueComparator(FastComparator.IDENTITY);
-                }
-                if (closed == null) {
-                    closed = FastTable.newInstance();
-                }
                 restart = false;
                 searchStartLoc.set(startLoc);
                 searchEndLoc.set(endLoc);
@@ -189,7 +187,6 @@ public final class Pathfinder
                 searching = true;
 
                 PathNode.clearCache();
-                closed.clear();
                 open.clear();
                 maxDepth = 0;
                 outputPath = false;
@@ -220,10 +217,6 @@ public final class Pathfinder
                 searchReceiver.handlePath(resultPath);
                 searchStartLoc = null;
                 searchEndLoc = null;
-                FastTable.recycle(open);
-                open = null;
-                FastTable.recycle(closed);
-                closed = null;
                 continue;
             }
 
@@ -247,7 +240,7 @@ public final class Pathfinder
             final Location searchLoc = new Location();
             for (int dir = 0; dir < Location.DIR_MOVE8; ++dir) {
                 searchLoc.set(currentLoc);
-                searchLoc.moveSC8(dir);
+                searchLoc.moveSC(dir);
                 final PathNode searchNode = PathNode.getNode(searchLoc);
 
                 if (!searchNode.isBlocked()) {
@@ -259,15 +252,15 @@ public final class Pathfinder
                     }
 
                     if (newMoveCost < searchNode.getCost()) {
-                        if (searchNode.getOpen()) {
+                        if (searchNode.isOpen()) {
                             removeFromOpen(searchNode);
                         }
-                        if (searchNode.getClosed()) {
+                        if (searchNode.isClosed()) {
                             removeFromClosed(searchNode);
                         }
                     }
 
-                    if (!searchNode.getOpen() && !searchNode.getClosed()) {
+                    if (!searchNode.isOpen() && !searchNode.isClosed()) {
                         searchNode.setCost(newMoveCost);
                         searchNode.setParent(currentNode);
 
@@ -279,7 +272,7 @@ public final class Pathfinder
                     }
                 }
             }
-            open.sort();
+            Collections.sort(open);
         }
     }
 
@@ -308,9 +301,8 @@ public final class Pathfinder
      *
      * @param node the path node that shall be added
      */
-    private void addToClosed(final PathNode node) {
+    private static void addToClosed(@Nonnull final PathNode node) {
         node.setClosed(true);
-        closed.add(node);
     }
 
     /**
@@ -318,7 +310,7 @@ public final class Pathfinder
      *
      * @param node the path node that shall be added
      */
-    private void addToOpen(final PathNode node) {
+    private void addToOpen(@Nonnull final PathNode node) {
         open.add(node);
         node.setOpen(true);
     }
@@ -328,9 +320,8 @@ public final class Pathfinder
      *
      * @param node the node that shall be removed from the list
      */
-    private void removeFromClosed(final PathNode node) {
+    private static void removeFromClosed(@Nonnull final PathNode node) {
         node.setClosed(false);
-        closed.remove(node);
     }
 
     /**
@@ -338,7 +329,7 @@ public final class Pathfinder
      *
      * @param node the node that shall be removed from the list
      */
-    private void removeFromOpen(final PathNode node) {
+    private void removeFromOpen(@Nonnull final PathNode node) {
         node.setOpen(false);
         open.remove(node);
     }

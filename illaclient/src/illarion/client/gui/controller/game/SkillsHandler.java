@@ -18,6 +18,7 @@
  */
 package illarion.client.gui.controller.game;
 
+import de.lessvoid.nifty.EndNotify;
 import de.lessvoid.nifty.Nifty;
 import de.lessvoid.nifty.NiftyEventSubscriber;
 import de.lessvoid.nifty.builder.PanelBuilder;
@@ -31,28 +32,32 @@ import de.lessvoid.nifty.elements.render.TextRenderer;
 import de.lessvoid.nifty.screen.Screen;
 import de.lessvoid.nifty.screen.ScreenController;
 import de.lessvoid.nifty.tools.SizeValue;
+import illarion.client.IllaClient;
+import illarion.client.gui.SkillGui;
 import illarion.client.input.InputReceiver;
 import illarion.client.net.server.events.LoginFinishedEvent;
-import illarion.client.net.server.events.SkillReceivedEvent;
 import illarion.client.util.Lang;
+import illarion.client.util.UpdateTask;
+import illarion.client.world.MapTile;
 import illarion.client.world.World;
 import illarion.common.data.Skill;
 import illarion.common.data.SkillGroup;
 import illarion.common.data.SkillGroups;
+import org.apache.log4j.Logger;
 import org.bushe.swing.event.annotation.AnnotationProcessor;
 import org.bushe.swing.event.annotation.EventSubscriber;
 import org.bushe.swing.event.annotation.EventTopicSubscriber;
 import org.newdawn.slick.GameContainer;
+import org.newdawn.slick.state.StateBasedGame;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import javax.annotation.Nonnull;
 
 /**
  * This handler controls the skill window.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class SkillsHandler implements ScreenController, UpdatableHandler {
+public final class SkillsHandler implements SkillGui, ScreenController, UpdatableHandler {
     /**
      * The Nifty-GUI instance this handler is bound to.
      */
@@ -69,28 +74,20 @@ public final class SkillsHandler implements ScreenController, UpdatableHandler {
     private Window skillWindow;
 
     /**
-     * The Queue of updates that need to be executed for the GUI..
-     */
-    private final Queue<Runnable> updateQueue;
-
-    /**
      * This flag is set {@code true} once the login to the server is done.
      */
     private boolean loginDone;
 
-    /**
-     * The default constructor.
-     */
-    public SkillsHandler() {
-        updateQueue = new ConcurrentLinkedQueue<Runnable>();
-    }
-
     @Override
-    public void bind(final Nifty nifty, final Screen screen) {
+    public void bind(final Nifty nifty, @Nonnull final Screen screen) {
         this.nifty = nifty;
         this.screen = screen;
 
         skillWindow = screen.findNiftyControl("characterInformation", Window.class);
+
+        skillWindow.getElement().setConstraintX(new SizeValue(IllaClient.getCfg().getString("skillWindowPosX")));
+        skillWindow.getElement().setConstraintY(new SizeValue(IllaClient.getCfg().getString("skillWindowPosY")));
+        skillWindow.getElement().getParent().layoutElements();
 
         createSkillEntries();
     }
@@ -105,11 +102,20 @@ public final class SkillsHandler implements ScreenController, UpdatableHandler {
     public void onEndScreen() {
         nifty.unsubscribeAnnotations(this);
         AnnotationProcessor.unprocess(this);
+
+        IllaClient.getCfg().set("skillWindowPosX", Integer.toString(skillWindow.getElement().getX()) + "px");
+        IllaClient.getCfg().set("skillWindowPosY", Integer.toString(skillWindow.getElement().getY()) + "px");
     }
 
     public void showSkillWindow() {
         if (skillWindow != null) {
-            skillWindow.getElement().show();
+            skillWindow.getElement().show(new EndNotify() {
+                @Override
+                public void perform() {
+                    skillWindow.moveToFront();
+                }
+            });
+
         }
     }
 
@@ -193,17 +199,28 @@ public final class SkillsHandler implements ScreenController, UpdatableHandler {
      */
     private boolean layoutDirty;
 
+    @Override
+    public void updateSkill(@Nonnull final Skill skill, final int value, final int minor) {
+        World.getUpdateTaskManager().addTask(new UpdateTask() {
+            @Override
+            public void onUpdateGame(@Nonnull final GameContainer container, final StateBasedGame game, final int delta) {
+                internalUpdateSkill(skill, value);
+            }
+        });
+    }
+
     /**
      * This function will update the data of a single skill.
      *
-     * @param updateData the information needed to perform the update
+     * @param skill the skill that receives the update
+     * @param value the new value of the skill
      */
-    private void updateSkill(final SkillReceivedEvent updateData) {
+    private void internalUpdateSkill(@Nonnull final Skill skill, final int value) {
         final Element skillPanel = skillWindow.getElement().findElementByName("#skill" +
-                Integer.toString(updateData.getSkill().getId()));
+                Integer.toString(skill.getId()));
 
         boolean skillChanged = false;
-        if (updateData.getValue() == 0) {
+        if (value == 0) {
             skillPanel.setConstraintHeight(SizeValue.px(0));
         } else {
             skillPanel.getParent().setConstraintHeight(SizeValue.wildcard());
@@ -214,7 +231,7 @@ public final class SkillsHandler implements ScreenController, UpdatableHandler {
             final Element valueLabel = skillPanel.findElementByName("#value");
             final TextRenderer valueTextRenderer = valueLabel.getRenderer(TextRenderer.class);
 
-            final String newValue = Integer.toString(updateData.getValue());
+            final String newValue = Integer.toString(value);
             skillChanged = !valueTextRenderer.getOriginalText().equals(newValue);
             valueTextRenderer.setText(newValue);
             valueLabel.setConstraintHeight(SizeValue.px(18));
@@ -226,18 +243,25 @@ public final class SkillsHandler implements ScreenController, UpdatableHandler {
 
         if (loginDone && skillChanged) {
             screen.findElementByName("openSkillsBtn").startEffect(EffectEventId.onCustom, null, "pulse");
-            World.getMap().getMapAt(World.getPlayer().getLocation()).showEffect(41);
+            final MapTile playerTile = World.getMap().getMapAt(World.getPlayer().getLocation());
+            if (playerTile == null) {
+                LOGGER.error("Tile below the player is NULL?!");
+            } else {
+                playerTile.showEffect(41);
+            }
         }
 
         layoutDirty = true;
     }
+
+    private static final Logger LOGGER = Logger.getLogger(SkillsHandler.class);
 
     private void updateVisibility() {
         final Element content = skillWindow.getElement().findElementByName("#textContent");
         updateVisibilityOfElement(content);
     }
 
-    private void updateVisibilityOfElement(final Element target) {
+    private static void updateVisibilityOfElement(@Nonnull final Element target) {
         if ("0px".equals(target.getConstraintHeight().toString())) {
             target.setVisible(false);
         } else {
@@ -249,36 +273,12 @@ public final class SkillsHandler implements ScreenController, UpdatableHandler {
 
     @Override
     public void update(final GameContainer container, final int delta) {
-        while (true) {
-            final Runnable task = updateQueue.poll();
-            if (task == null) {
-                break;
-            }
-
-            task.run();
-        }
-
         if (layoutDirty) {
             layoutDirty = false;
 
             updateVisibility();
             skillWindow.getElement().layoutElements();
         }
-    }
-
-    /**
-     * The event handler for new skills that are received from the server.
-     *
-     * @param data the skill data
-     */
-    @EventSubscriber
-    public void onSkillUpdateReceived(final SkillReceivedEvent data) {
-        updateQueue.add(new Runnable() {
-            @Override
-            public void run() {
-                updateSkill(data);
-            }
-        });
     }
 
     /**
@@ -305,9 +305,9 @@ public final class SkillsHandler implements ScreenController, UpdatableHandler {
     @EventTopicSubscriber(topic = InputReceiver.EB_TOPIC)
     public void onInputEvent(final String topic, final String data) {
         if ("ToggleCharacterWindow".equals(data)) {
-            updateQueue.add(new Runnable() {
+            World.getUpdateTaskManager().addTask(new UpdateTask() {
                 @Override
-                public void run() {
+                public void onUpdateGame(@Nonnull final GameContainer container, final StateBasedGame game, final int delta) {
                     toggleSkillWindow();
                 }
             });

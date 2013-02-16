@@ -29,21 +29,18 @@ import de.lessvoid.nifty.elements.events.NiftyMousePrimaryClickedEvent;
 import de.lessvoid.nifty.render.NiftyImage;
 import de.lessvoid.nifty.screen.Screen;
 import de.lessvoid.nifty.screen.ScreenController;
-import gnu.trove.iterator.TIntObjectIterator;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.procedure.TIntObjectProcedure;
 import illarion.client.IllaClient;
-import illarion.client.graphics.Item;
+import illarion.client.gui.ContainerGui;
 import illarion.client.gui.EntitySlickRenderImage;
-import illarion.client.net.CommandFactory;
-import illarion.client.net.CommandList;
-import illarion.client.net.client.OpenBagCmd;
-import illarion.client.net.server.events.CloseContainerEvent;
-import illarion.client.net.server.events.ContainerItemLookAtEvent;
+import illarion.client.gui.Tooltip;
+import illarion.client.net.client.CloseShowcaseCmd;
 import illarion.client.net.server.events.DialogMerchantReceivedEvent;
-import illarion.client.net.server.events.OpenContainerEvent;
 import illarion.client.resources.ItemFactory;
+import illarion.client.resources.data.ItemTemplate;
 import illarion.client.util.LookAtTracker;
+import illarion.client.util.UpdateTask;
 import illarion.client.world.World;
 import illarion.client.world.events.CloseDialogEvent;
 import illarion.client.world.interactive.InteractionManager;
@@ -55,6 +52,7 @@ import illarion.common.gui.AbstractMultiActionHelper;
 import illarion.common.types.ItemCount;
 import illarion.common.types.ItemId;
 import illarion.common.types.Rectangle;
+import org.apache.log4j.Logger;
 import org.bushe.swing.event.annotation.AnnotationProcessor;
 import org.bushe.swing.event.annotation.EventSubscriber;
 import org.illarion.nifty.controls.InventorySlot;
@@ -62,9 +60,10 @@ import org.illarion.nifty.controls.ItemContainerCloseEvent;
 import org.illarion.nifty.controls.itemcontainer.builder.ItemContainerBuilder;
 import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Input;
+import org.newdawn.slick.state.StateBasedGame;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -73,17 +72,18 @@ import java.util.regex.Pattern;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class ContainerHandler implements ScreenController, UpdatableHandler {
+public final class ContainerHandler implements ContainerGui, ScreenController {
     /**
      * This class is used as drag end operation and used to move a object that was dragged out of the inventory back in
      * so the server can send the commands to clean everything up.
      *
      * @author Martin Karing &lt;nitram@illarion.org&gt;
      */
-    private class EndOfDragOperation implements Runnable {
+    private static class EndOfDragOperation implements Runnable {
         /**
          * The inventory slot that requires the reset.
          */
+        @Nonnull
         private final InventorySlot invSlot;
 
         /**
@@ -91,10 +91,7 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
          *
          * @param slot the inventory slot to reset
          */
-        EndOfDragOperation(final InventorySlot slot) {
-            if (slot == null) {
-                throw new NullPointerException("slot");
-            }
+        EndOfDragOperation(@Nonnull final InventorySlot slot) {
             invSlot = slot;
         }
 
@@ -132,27 +129,30 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
 
         @Override
         public void executeAction(final int count) {
-            final ItemContainer container;
-            final ContainerSlot slot;
+            final ItemContainer container = World.getPlayer().getContainer(containerId);
+            if (container == null) {
+                LOGGER.error("Used container does not exist.");
+                return;
+            }
+            final ContainerSlot slot = container.getSlot(slotId);
+
+            if (!slot.containsItem()) {
+                return;
+            }
 
             switch (count) {
                 case 1:
-                    container = World.getPlayer().getContainer(containerId);
-                    slot = container.getSlot(slotId);
-
                     slot.getInteractive().lookAt();
                     break;
                 case 2:
-                    container = World.getPlayer().getContainer(containerId);
-                    slot = container.getSlot(slotId);
-
                     if (World.getPlayer().hasMerchantList()) {
                         slot.getInteractive().sell();
-                    } else if (slot.getItemPrototype().isContainer()) {
-                        slot.getInteractive().openContainer();
-                    } else {
-                        slot.getInteractive().use();
-                    }
+                    } else //noinspection ConstantConditions
+                        if (slot.getItemTemplate().getItemInfo().isContainer()) {
+                            slot.getInteractive().openContainer();
+                        } else {
+                            slot.getInteractive().use();
+                        }
                     break;
             }
         }
@@ -169,19 +169,19 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
         }
     }
 
-    private final class UpdateContainerTask implements Runnable {
-        private final OpenContainerEvent event;
+    private final class UpdateContainerTask implements UpdateTask {
+        private final ItemContainer itemContainer;
 
-        UpdateContainerTask(final OpenContainerEvent updateEvent) {
-            event = updateEvent;
+        UpdateContainerTask(final ItemContainer container) {
+            itemContainer = container;
         }
 
         @Override
-        public void run() {
-            if (!isContainerCreated(event.getContainerId())) {
-                createNewContainer(event);
+        public void onUpdateGame(@Nonnull final GameContainer container, final StateBasedGame game, final int delta) {
+            if (!isContainerCreated(itemContainer.getContainerId())) {
+                createNewContainer(itemContainer);
             }
-            updateContainer(event.getContainerId(), event.getItemIterator());
+            updateContainer(itemContainer);
         }
     }
 
@@ -199,10 +199,8 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
      * The pattern to fetch the ID of a container name.
      */
     private static final Pattern containerPattern = Pattern.compile("container([0-9]+)");
-    /**
-     * The list of tasks that need to be executed upon the next call of the update loop.
-     */
-    private final Queue<Runnable> updateTasks = new ConcurrentLinkedQueue<Runnable>();
+
+    private static final Logger LOGGER = Logger.getLogger(ContainerHandler.class);
 
     /**
      * The Nifty-GUI instance that is handling the GUI display currently.
@@ -227,14 +225,15 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
     /**
      * The list of item containers that are currently displayed.
      */
+    @Nonnull
     private final TIntObjectHashMap<org.illarion.nifty.controls.ItemContainer> itemContainerMap;
 
     /**
      * The task that is executed to update the merchant overlays.
      */
-    private final Runnable updateMerchantOverlays = new Runnable() {
+    private final UpdateTask updateMerchantOverlays = new UpdateTask() {
         @Override
-        public void run() {
+        public void onUpdateGame(@Nonnull final GameContainer container, final StateBasedGame game, final int delta) {
             updateAllMerchantOverlays();
         }
     };
@@ -242,7 +241,7 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
     /**
      * The input system that is used to query the state of the keyboard.
      */
-    private Input input;
+    private final Input input;
 
     /**
      * Constructor of this handler.
@@ -250,57 +249,12 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
      * @param numberSelectPopupHandler the number select handler
      * @param tooltip                  the tooltip handler
      */
-    public ContainerHandler(final NumberSelectPopupHandler numberSelectPopupHandler, final TooltipHandler tooltip) {
+    public ContainerHandler(final Input input, final NumberSelectPopupHandler numberSelectPopupHandler,
+                            final TooltipHandler tooltip) {
         itemContainerMap = new TIntObjectHashMap<org.illarion.nifty.controls.ItemContainer>();
         numberSelect = numberSelectPopupHandler;
         tooltipHandler = tooltip;
-    }
-
-    @EventSubscriber
-    public void onContainerClosedEvent(final CloseContainerEvent event) {
-        if (isContainerCreated(event.getContainerId())) {
-            removeItemContainer(event.getContainerId());
-        }
-    }
-
-    private void removeItemContainer(final int id) {
-        final org.illarion.nifty.controls.ItemContainer container = itemContainerMap.remove(id);
-        if (container == null) {
-            return;
-        }
-
-        container.closeWindow();
-    }
-
-    /**
-     * This event is received in case the server sends a tooltip for a container.
-     *
-     * @param event the container tooltip
-     */
-    @EventSubscriber
-    public void onContainerItemLookAtHandler(final ContainerItemLookAtEvent event) {
-        if (!isContainerCreated(event.getContainerId())) {
-            return;
-        }
-
-        final org.illarion.nifty.controls.ItemContainer container = itemContainerMap.get(event.getContainerId());
-        final InventorySlot slot = container.getSlot(event.getSlot());
-        final Element slotElement = slot.getElement();
-
-        final Rectangle rect = new Rectangle();
-        rect.set(slotElement.getX(), slotElement.getY(), slotElement.getWidth(), slotElement.getHeight());
-
-        tooltipHandler.showToolTip(rect, event);
-    }
-
-    /**
-     * Check if a container with a specified ID is already created.
-     *
-     * @param containerId the container ID
-     * @return {@code true} in case the container is already created
-     */
-    private boolean isContainerCreated(final int containerId) {
-        return itemContainerMap.containsKey(containerId);
+        this.input = input;
     }
 
     /**
@@ -309,11 +263,11 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
      * @param event the close event that contains the information what dialog is supposed to be closed
      */
     @EventSubscriber
-    public void onDialogClosedEvent(final CloseDialogEvent event) {
+    public void onDialogClosedEvent(@Nonnull final CloseDialogEvent event) {
         switch (event.getDialogType()) {
             case Any:
             case Merchant:
-                updateTasks.offer(updateMerchantOverlays);
+                World.getUpdateTaskManager().addTask(updateMerchantOverlays);
 
             case Message:
                 break;
@@ -332,17 +286,41 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
      */
     @EventSubscriber
     public void onMerchantDialogReceivedHandler(final DialogMerchantReceivedEvent event) {
-        updateTasks.offer(updateMerchantOverlays);
+        World.getUpdateTaskManager().addTask(updateMerchantOverlays);
     }
 
     /**
-     * This event is received in case the server sends a new container.
+     * This event is received in case a container is closed.
      *
-     * @param event the event data of the new container
+     * @param topic the topic of the event
+     * @param data  the event data
      */
-    @EventSubscriber
-    public void onOpenContainerEvent(final OpenContainerEvent event) {
-        updateTasks.offer(new ContainerHandler.UpdateContainerTask(event));
+    @NiftyEventSubscriber(pattern = ".*container[0-9]+.*")
+    public void onItemContainerClose(final String topic, @Nonnull final ItemContainerCloseEvent data) {
+        World.getPlayer().removeContainer(data.getContainerId());
+        if (isContainerCreated(data.getContainerId())) {
+            removeItemContainer(data.getContainerId());
+            World.getNet().sendCommand(new CloseShowcaseCmd(data.getContainerId()));
+        }
+    }
+
+    /**
+     * Check if a container with a specified ID is already created.
+     *
+     * @param containerId the container ID
+     * @return {@code true} in case the container is already created
+     */
+    private boolean isContainerCreated(final int containerId) {
+        return itemContainerMap.containsKey(containerId);
+    }
+
+    private void removeItemContainer(final int id) {
+        final org.illarion.nifty.controls.ItemContainer container = itemContainerMap.remove(id);
+        if (container == null) {
+            return;
+        }
+
+        container.closeWindow();
     }
 
     /**
@@ -369,24 +347,6 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
 
         clickHelper.setData(slotId, containerId);
         clickHelper.pulse();
-    }
-
-    /**
-     * This event is received in case a container is closed.
-     *
-     * @param topic the topic of the event
-     * @param data  the event data
-     */
-    @NiftyEventSubscriber(pattern = ".*container[0-9]+.*")
-    public void onItemContainerClose(final String topic, final ItemContainerCloseEvent data) {
-        World.getPlayer().removeContainer(data.getContainerId());
-        if (isContainerCreated(data.getContainerId())) {
-            removeItemContainer(data.getContainerId());
-
-            final OpenBagCmd cmd = CommandFactory.getInstance().getCommand(CommandList.CMD_CLOSE_SHOWCASE,
-                    OpenBagCmd.class);
-            cmd.send();
-        }
     }
 
     /**
@@ -434,13 +394,13 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
      * @param data  the event data
      */
     @NiftyEventSubscriber(pattern = ".*container[0-9]+.*slot[0-9]+.*")
-    public void dragFrom(final String topic, final DraggableDragStartedEvent data) {
+    public void dragFrom(final String topic, @Nonnull final DraggableDragStartedEvent data) {
         final int slotId = getSlotId(topic);
         final int containerId = getContainerId(topic);
 
+        final Element parentSlot = data.getSource().getElement().getParent();
         World.getInteractionManager().notifyDraggingContainer(containerId, slotId,
-                new ContainerHandler.EndOfDragOperation(
-                        data.getSource().getElement().getParent().getNiftyControl(InventorySlot.class)));
+                new ContainerHandler.EndOfDragOperation(parentSlot.getNiftyControl(InventorySlot.class)));
     }
 
     /**
@@ -454,8 +414,13 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
         final int slotId = getSlotId(topic);
         final int containerId = getContainerId(topic);
 
-        final ItemCount amount = World.getInteractionManager().getMovedAmount();
         final InteractionManager iManager = World.getInteractionManager();
+        final ItemCount amount = iManager.getMovedAmount();
+        if (amount == null) {
+            LOGGER.error("Corrupted dropping detected.");
+            iManager.cancelDragging();
+            return;
+        }
         if (ItemCount.isGreaterOne(amount) && isShiftPressed()) {
             numberSelect.requestNewPopup(1, amount.getValue(), new NumberSelectPopupHandler.Callback() {
                 @Override
@@ -469,26 +434,8 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
                 }
             });
         } else {
-            iManager.dropAtContainer(containerId, slotId, World.getInteractionManager().getMovedAmount());
+            iManager.dropAtContainer(containerId, slotId, amount);
         }
-    }
-
-    @NiftyEventSubscriber(pattern = ".*container[0-9]+.*slot[0-9]+.*")
-    public void onMouseMoveOverSlot(final String topic, final NiftyMouseMovedEvent event) {
-        final int slotId = getSlotId(topic);
-        final int containerId = getContainerId(topic);
-
-        if (input.isMouseButtonDown(Input.MOUSE_LEFT_BUTTON) || input.isMouseButtonDown(Input.MOUSE_RIGHT_BUTTON)) {
-            return;
-        }
-
-        final ContainerSlot slot = World.getPlayer().getContainer(containerId).getSlot(slotId);
-
-        if (!LookAtTracker.isLookAtObject(slot)) {
-            LookAtTracker.setLookAtObject(slot);
-            slot.getInteractive().lookAt();
-        }
-
     }
 
     /**
@@ -500,10 +447,50 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
         return (input != null) && (input.isKeyDown(Input.KEY_LSHIFT) || input.isKeyDown(Input.KEY_RSHIFT));
     }
 
+    @NiftyEventSubscriber(pattern = ".*container[0-9]+.*slot[0-9]+.*")
+    public void onMouseMoveOverSlot(final String topic, final NiftyMouseMovedEvent event) {
+        final int slotId = getSlotId(topic);
+        final int containerId = getContainerId(topic);
+
+        if (input.isMouseButtonDown(Input.MOUSE_LEFT_BUTTON) || input.isMouseButtonDown(Input.MOUSE_RIGHT_BUTTON)) {
+            return;
+        }
+
+        final ItemContainer container = World.getPlayer().getContainer(containerId);
+        if (container == null) {
+            LOGGER.error("MouseOver action on non-existent container!");
+            return;
+        }
+
+        final ContainerSlot slot = container.getSlot(slotId);
+
+        if (!LookAtTracker.isLookAtObject(slot)) {
+            LookAtTracker.setLookAtObject(slot);
+            slot.getInteractive().lookAt();
+        }
+    }
+
     @Override
     public void bind(final Nifty nifty, final Screen screen) {
         activeNifty = nifty;
         activeScreen = screen;
+    }
+
+    @Override
+    public void closeContainer(final int containerId) {
+        World.getUpdateTaskManager().addTask(new UpdateTask() {
+            @Override
+            public void onUpdateGame(@Nonnull final GameContainer container, final StateBasedGame game, final int delta) {
+                if (isContainerCreated(containerId)) {
+                    removeItemContainer(containerId);
+                }
+            }
+        });
+    }
+
+    @Override
+    public boolean isVisible(final int containerId) {
+        return isContainerCreated(containerId);
     }
 
     @Override
@@ -519,34 +506,41 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
     }
 
     @Override
-    public void update(final GameContainer container, final int delta) {
-        input = container.getInput();
-        while (true) {
-            final Runnable task = updateTasks.poll();
-            if (task == null) {
-                break;
-            }
+    public void showContainer(@Nonnull final ItemContainer container) {
+        World.getUpdateTaskManager().addTask(new ContainerHandler.UpdateContainerTask(container));
+    }
 
-            task.run();
+    @Override
+    public void showTooltip(final int containerId, final int slotId, @Nonnull final Tooltip tooltip) {
+        @Nullable final org.illarion.nifty.controls.ItemContainer container = itemContainerMap.get(containerId);
+        if (container == null) {
+            return;
         }
+        final InventorySlot slot = container.getSlot(slotId);
+        final Element slotElement = slot.getElement();
+
+        final Rectangle rect = new Rectangle();
+        rect.set(slotElement.getX(), slotElement.getY(), slotElement.getWidth(), slotElement.getHeight());
+
+        tooltipHandler.showToolTip(rect, tooltip);
     }
 
     /**
      * Create a new container.
      *
-     * @param event the event that contains the data for the new container
+     * @param itemContainer the item container the GUI is supposed to display
      */
-    private void createNewContainer(final OpenContainerEvent event) {
-        final ItemContainerBuilder builder = new ItemContainerBuilder("container" + event.getContainerId(),
+    private void createNewContainer(@Nonnull final ItemContainer itemContainer) {
+        final ItemContainerBuilder builder = new ItemContainerBuilder("container" + itemContainer.getContainerId(),
                 "${gamescreen-bundle.bag}");
-        builder.slots(event.getSlotCount());
+        builder.slots(itemContainer.getSlotCount());
         builder.slotDim(35, 35);
-        builder.containerId(event.getContainerId());
+        builder.containerId(itemContainer.getContainerId());
 
         final Element container = builder.build(activeNifty, activeScreen, activeScreen.findElementByName("windows"));
         final org.illarion.nifty.controls.ItemContainer conControl = container.getNiftyControl(org.illarion.nifty.controls.ItemContainer.class);
 
-        itemContainerMap.put(event.getContainerId(), conControl);
+        itemContainerMap.put(itemContainer.getContainerId(), conControl);
     }
 
     /**
@@ -555,11 +549,16 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
     private void updateAllMerchantOverlays() {
         itemContainerMap.forEachEntry(new TIntObjectProcedure<org.illarion.nifty.controls.ItemContainer>() {
             @Override
-            public boolean execute(final int id, final org.illarion.nifty.controls.ItemContainer itemContainer) {
+            public boolean execute(final int id, @Nonnull final org.illarion.nifty.controls.ItemContainer itemContainer) {
                 final int slotCount = itemContainer.getSlotCount();
                 for (int i = 0; i < slotCount; i++) {
                     final InventorySlot conSlot = itemContainer.getSlot(i);
-                    updateMerchantOverlay(conSlot, World.getPlayer().getContainer(id).getSlot(i).getItemID());
+                    final ItemContainer container = World.getPlayer().getContainer(id);
+                    if (container == null) {
+                        LOGGER.error("Container in handler was not created for player!");
+                        return true;
+                    }
+                    updateMerchantOverlay(conSlot, container.getSlot(i).getItemID());
                 }
                 return true;
             }
@@ -572,7 +571,7 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
      * @param slot   the slot to update
      * @param itemId the item ID in this slot
      */
-    private void updateMerchantOverlay(final InventorySlot slot, final ItemId itemId) {
+    private void updateMerchantOverlay(@Nonnull final InventorySlot slot, @Nullable final ItemId itemId) {
         if (!ItemId.isValidItem(itemId)) {
             slot.hideMerchantOverlay();
             return;
@@ -602,27 +601,32 @@ public final class ContainerHandler implements ScreenController, UpdatableHandle
     /**
      * Update the items inside the container.
      *
-     * @param containerId the container ID
-     * @param itr         the item iterator that updates the container
+     * @param itemContainer the item container that contains the new data of the container
      */
-    private void updateContainer(final int containerId, final TIntObjectIterator<OpenContainerEvent.Item> itr) {
-        final org.illarion.nifty.controls.ItemContainer conControl = itemContainerMap.get(containerId);
-
-        final int slotCount = conControl.getSlotCount();
-        for (int i = 0; i < slotCount; i++) {
-            final InventorySlot conSlot = conControl.getSlot(i);
-            conSlot.setImage(null);
-            conSlot.hideLabel();
+    private void updateContainer(@Nonnull final ItemContainer itemContainer) {
+        @Nullable final org.illarion.nifty.controls.ItemContainer conControl =
+                itemContainerMap.get(itemContainer.getContainerId());
+        if (conControl == null) {
+            LOGGER.warn("Updating a container that does not exist.");
+            return;
         }
 
-        while (itr.hasNext()) {
-            itr.advance();
-            final InventorySlot conSlot = conControl.getSlot(itr.key());
-            final ItemId itemId = itr.value().getItemId();
-            final ItemCount count = itr.value().getCount();
+        final int slotCount = conControl.getSlotCount();
+        if (itemContainer.getSlotCount() != slotCount) {
+            // something is badly wrong. The player class will handle this issue.
+            return;
+        }
 
-            if (ItemId.isValidItem(itemId)) {
-                final Item displayedItem = ItemFactory.getInstance().getPrototype(itemId.getValue());
+        for (int i = 0; i < slotCount; i++) {
+            final ContainerSlot containerSlot = itemContainer.getSlot(i);
+            final InventorySlot conSlot = conControl.getSlot(i);
+            final ItemId itemId = containerSlot.getItemID();
+            final ItemCount count = containerSlot.getCount();
+
+            if (ItemId.isValidItem(itemId) && ItemCount.isGreaterZero(count)) {
+                assert itemId != null;
+                assert count != null;
+                final ItemTemplate displayedItem = ItemFactory.getInstance().getTemplate(itemId.getValue());
 
                 final NiftyImage niftyImage = new NiftyImage(activeNifty.getRenderEngine(),
                         new EntitySlickRenderImage(displayedItem));

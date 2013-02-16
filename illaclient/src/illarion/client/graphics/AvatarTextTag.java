@@ -26,6 +26,9 @@ import org.newdawn.slick.Color;
 import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Graphics;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
  * This is the characterName tag that is in special displayed above avatars.
  *
@@ -35,7 +38,7 @@ public final class AvatarTextTag implements Drawable {
     /**
      * The color of the background pane that is displayed behind the characterName.
      */
-    private static final Color BACK_COLOR = new Color(0.f, 0.f, 0.f, 0.3f);
+    private static final Color BACK_COLOR = new Color(0.f, 0.f, 0.f, 0.58f);
 
     /**
      * This color is used as temporary color during the rendering process.
@@ -51,11 +54,13 @@ public final class AvatarTextTag implements Drawable {
     /**
      * The color implementation that is used to render the characterName.
      */
+    @Nullable
     private Color charNameColor;
 
     /**
      * The color of the health state of the character.
      */
+    @Nullable
     private Color healthStateColor;
 
     /**
@@ -76,6 +81,7 @@ public final class AvatarTextTag implements Drawable {
     /**
      * The text displayed to show the health state of the character.
      */
+    @Nullable
     private String healthState;
 
     /**
@@ -142,7 +148,7 @@ public final class AvatarTextTag implements Drawable {
      *
      * @param newColor the color that is used to render the characterName tag.
      */
-    public void setCharNameColor(final Color newColor) {
+    public void setCharNameColor(@Nullable final Color newColor) {
         if ((newColor == null) || newColor.equals(charNameColor)) {
             return;
         }
@@ -156,7 +162,7 @@ public final class AvatarTextTag implements Drawable {
      *
      * @param newColor the color that is used to render the characterName tag.
      */
-    public void setHealthStateColor(final Color newColor) {
+    public void setHealthStateColor(@Nullable final Color newColor) {
         if ((newColor == null) || newColor.equals(healthStateColor)) {
             return;
         }
@@ -184,7 +190,7 @@ public final class AvatarTextTag implements Drawable {
      *
      * @param newText the new name of the character that is displayed from now on
      */
-    public void setCharacterName(final String newText) {
+    public void setCharacterName(@Nonnull final String newText) {
         if (newText.equals(charName)) {
             return;
         }
@@ -198,7 +204,7 @@ public final class AvatarTextTag implements Drawable {
      *
      * @param newText the new health state text
      */
-    public void setHealthState(final String newText) {
+    public void setHealthState(@Nullable final String newText) {
         if ((newText == null) && (healthState == null)) {
             return;
         }
@@ -217,7 +223,7 @@ public final class AvatarTextTag implements Drawable {
 
         final SlickRenderFont font;
         try {
-            font = FontLoader.getInstance().getFont(FontLoader.Fonts.small);
+            font = FontLoader.getInstance().getFont(FontLoader.Fonts.Small);
         } catch (SlickLoadFontException e) {
             throw new RuntimeException(e);
         }
@@ -252,7 +258,7 @@ public final class AvatarTextTag implements Drawable {
         charNameOffsetY = 0;
 
         healthStateOffsetX = (width - healthWidth) / 2;
-        healthStateOffsetY = nameHeight + LINE_SPACE;
+        healthStateOffsetY = nameHeight;
 
         dirty = true;
     }
@@ -263,7 +269,7 @@ public final class AvatarTextTag implements Drawable {
     private int healthStateOffsetY;
 
     @Override
-    public boolean draw(final Graphics g) {
+    public boolean draw(@Nonnull final Graphics g) {
         if ((charName == null) && (healthState == null)) {
             return true;
         }
@@ -283,7 +289,7 @@ public final class AvatarTextTag implements Drawable {
 
         final SlickRenderFont font;
         try {
-            font = FontLoader.getInstance().getFont(FontLoader.Fonts.small);
+            font = FontLoader.getInstance().getFont(FontLoader.Fonts.Small);
         } catch (SlickLoadFontException e) {
             throw new RuntimeException(e);
         }
@@ -321,13 +327,14 @@ public final class AvatarTextTag implements Drawable {
     private final Rectangle displayRect = new Rectangle();
     private final Rectangle oldDisplayRect = new Rectangle();
 
+    @Nonnull
     @Override
     public Rectangle getLastDisplayRect() {
         return oldDisplayRect;
     }
 
     @Override
-    public void update(final GameContainer c, final int delta) {
+    public void update(@Nonnull final GameContainer container, final int delta) {
         calculateTextLocations();
         if (dirty) {
             dirty = false;

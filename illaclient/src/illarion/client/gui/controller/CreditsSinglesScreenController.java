@@ -30,8 +30,12 @@ import de.lessvoid.nifty.screen.ScreenController;
 import illarion.client.util.Lang;
 import illarion.common.data.Credits;
 import illarion.common.data.CreditsList;
+import illarion.common.data.CreditsPerson;
 
+import javax.annotation.Nonnull;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  * @author Martin Karing &lt;nitram@illarion.org&gt;
@@ -44,7 +48,7 @@ public final class CreditsSinglesScreenController implements ScreenController, K
     private Label nameLabel;
 
     @Override
-    public void bind(final Nifty nifty, final Screen screen) {
+    public void bind(final Nifty nifty, @Nonnull final Screen screen) {
         this.nifty = nifty;
 
         displayParent = screen.findElementByName("nameDisplay");
@@ -59,7 +63,7 @@ public final class CreditsSinglesScreenController implements ScreenController, K
         showNextEntry(creditsIterator);
     }
 
-    private void showNextEntry(final Iterator<CreditsList> iterator) {
+    private void showNextEntry(@Nonnull final Iterator<CreditsList> iterator) {
         if (!iterator.hasNext()) {
             gotoNextScreen();
             return;
@@ -71,7 +75,26 @@ public final class CreditsSinglesScreenController implements ScreenController, K
         } else {
             titleLabel.setText(list.getNameEnglish());
         }
-        nameLabel.setText(list.getFirst().getName());
+
+        final List<String> names = new ArrayList<String>();
+        for (final CreditsPerson person : list) {
+            names.add(person.getName());
+        }
+        final StringBuilder builder = new StringBuilder();
+        final int nameCount = names.size();
+        for (int i = 0; i < nameCount; i++) {
+            builder.append(names.get(i));
+            if (i < (nameCount - 2)) {
+                builder.append(", ");
+            } else if (i < (nameCount - 1)) {
+                if (Lang.getInstance().isGerman()) {
+                    builder.append(" und ");
+                } else {
+                    builder.append(" and ");
+                }
+            }
+        }
+        nameLabel.setText(builder.toString());
         displayParent.layoutElements();
 
         displayParent.show(new EndNotify() {

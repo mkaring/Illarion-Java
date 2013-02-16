@@ -19,7 +19,11 @@
 package illarion.client.net.client;
 
 import illarion.client.net.CommandList;
+import illarion.client.util.ChatHandler;
 import illarion.common.net.NetCommWriter;
+
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.Immutable;
 
 /**
  * Client Command: Send a spoken text or a emote or a text command (
@@ -28,71 +32,53 @@ import illarion.common.net.NetCommWriter;
  * @author Nop
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@Immutable
 public final class SayCmd extends AbstractCommand {
     /**
-     * The text that is send to the server. This can be text spoken by the
-     * player character, also a emote of the character or a text based command
-     * like the GM-commands.
+     * The text that is send to the server.
      */
-    private String text;
+    @Nonnull
+    private final String text;
 
     /**
      * Default constructor for the say text command.
      */
-    public SayCmd() {
-        super(CommandList.CMD_SAY);
+    public SayCmd(@Nonnull final ChatHandler.SpeechMode mode, @Nonnull final String text) {
+        super(getCommandId(mode));
+
+        this.text = text;
     }
 
     /**
-     * Create a duplicate of this say command.
+     * Get the fitting command ID according to the speech mode.
      *
-     * @return new instance of this command
+     * @param mode the speech mode
+     * @return the command id
+     * @throws IllegalArgumentException in case {@code mode} is not {@link ChatHandler.SpeechMode#Normal} or
+     *                                  {@link ChatHandler.SpeechMode#Shout} or {@link ChatHandler.SpeechMode#Whisper}
      */
-    @Override
-    public SayCmd clone() {
-        return new SayCmd();
-    }
-
-    /**
-     * Encode the data of this say command and put the values into the buffer.
-     *
-     * @param writer the interface that allows writing data to the network
-     *               communication system
-     */
-    @Override
-    public void encode(final NetCommWriter writer) {
-        writer.writeString(text);
-    }
-
-    /**
-     * Clean up the command before put it back into the recycler for later
-     * reuse.
-     */
-    @Override
-    public void reset() {
-        text = null;
-    }
-
-    /**
-     * Set the text that shall be send to the server.
-     *
-     * @param sayText the text that is send
-     */
-    public void setText(final String sayText) {
-        text = sayText;
-        if (text.startsWith("/")) {
-            text = '/' + text.substring(1);
+    private static int getCommandId(@Nonnull final ChatHandler.SpeechMode mode) {
+        switch (mode) {
+            case Normal:
+                return CommandList.CMD_SAY;
+            case Shout:
+                return CommandList.CMD_SHOUT;
+            case Whisper:
+                return CommandList.CMD_WHISPER;
+            default:
+                throw new IllegalArgumentException("Illegal speech mode supplied.");
         }
     }
 
-    /**
-     * Get the data of this say command as string.
-     *
-     * @return the data of this command as string
-     */
+    @Override
+    public void encode(@Nonnull final NetCommWriter writer) {
+        writer.writeString(text);
+    }
+
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {
-        return toString("Text: " + text);
+        return toString("Text: " + text + " Mode: " + getId());
     }
 }

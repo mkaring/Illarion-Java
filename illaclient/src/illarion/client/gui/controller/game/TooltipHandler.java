@@ -25,16 +25,19 @@ import de.lessvoid.nifty.screen.Screen;
 import de.lessvoid.nifty.screen.ScreenController;
 import de.lessvoid.nifty.tools.Color;
 import de.lessvoid.nifty.tools.SizeValue;
+import illarion.client.gui.Tooltip;
 import illarion.client.gui.events.TooltipsRemovedEvent;
-import illarion.client.net.server.events.AbstractItemLookAtEvent;
+import illarion.client.util.UpdateTask;
+import illarion.client.world.World;
 import illarion.common.types.Rectangle;
 import org.bushe.swing.event.EventBus;
 import org.illarion.nifty.controls.tooltip.builder.ToolTipBuilder;
 import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Input;
+import org.newdawn.slick.state.StateBasedGame;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * This tooltip handler takes care of showing and hiding the item tooltips on the screen.
@@ -42,11 +45,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
 public final class TooltipHandler implements ScreenController, UpdatableHandler {
-    /**
-     * The queue that contains the tasks for the tooltips that need to be executed upon the next update.
-     */
-    private final Queue<Runnable> toolTipTasks;
-
     /**
      * The Nifty that is the parent to this handler.
      */
@@ -65,6 +63,7 @@ public final class TooltipHandler implements ScreenController, UpdatableHandler 
     /**
      * The area the mouse as the remain inside to keep the tooltip active.
      */
+    @Nullable
     private Rectangle activeTooltipArea;
 
     /**
@@ -80,9 +79,10 @@ public final class TooltipHandler implements ScreenController, UpdatableHandler 
     /**
      * The task that will clean all opened tooltip.
      */
-    private Runnable cleanToolTips = new Runnable() {
+    @Nonnull
+    private UpdateTask cleanToolTips = new UpdateTask() {
         @Override
-        public void run() {
+        public void onUpdateGame(@Nonnull final GameContainer container, final StateBasedGame game, final int delta) {
             for (final Element element : toolTipLayer.getElements()) {
                 element.hide(new EndNotify() {
                     @Override
@@ -95,15 +95,8 @@ public final class TooltipHandler implements ScreenController, UpdatableHandler 
         }
     };
 
-    /**
-     * The default constructor.
-     */
-    public TooltipHandler() {
-        toolTipTasks = new ConcurrentLinkedQueue<Runnable>();
-    }
-
     @Override
-    public void bind(final Nifty nifty, final Screen screen) {
+    public void bind(final Nifty nifty, @Nonnull final Screen screen) {
         parentNifty = nifty;
         parentScreen = screen;
 
@@ -117,20 +110,11 @@ public final class TooltipHandler implements ScreenController, UpdatableHandler 
 
     @Override
     public void onEndScreen() {
-        cleanToolTips.run();
+        hideToolTip();
     }
 
     @Override
-    public void update(final GameContainer container, final int delta) {
-        while (true) {
-            final Runnable task = toolTipTasks.poll();
-            if (task == null) {
-                break;
-            }
-
-            task.run();
-        }
-
+    public void update(@Nonnull final GameContainer container, final int delta) {
         final Input input = container.getInput();
         lastMouseX = input.getMouseX();
         lastMouseY = input.getMouseY();
@@ -146,7 +130,7 @@ public final class TooltipHandler implements ScreenController, UpdatableHandler 
      * Hide all current tooltips.
      */
     public void hideToolTip() {
-        toolTipTasks.offer(cleanToolTips);
+        World.getUpdateTaskManager().addTask(cleanToolTips);
     }
 
     /**
@@ -154,19 +138,19 @@ public final class TooltipHandler implements ScreenController, UpdatableHandler 
      *
      * @param location the tooltip should be place around, the area of this rectangle won't be hidden by the tooltip.
      *                 Also the mouse is required to remain inside this area to keep the tooltip active
-     * @param event    the event that contains the data of the tooltip
+     * @param tooltip  the tooltip to display
      */
-    public void showToolTip(final Rectangle location, final AbstractItemLookAtEvent event) {
+    public void showToolTip(@Nonnull final Rectangle location, @Nonnull final Tooltip tooltip) {
         hideToolTip();
 
         if (!location.isInside(lastMouseX, lastMouseY)) {
             return;
         }
 
-        toolTipTasks.offer(new Runnable() {
+        World.getUpdateTaskManager().addTask(new UpdateTask() {
             @Override
-            public void run() {
-                showToolTipImpl(location, event);
+            public void onUpdateGame(@Nonnull final GameContainer container, final StateBasedGame game, final int delta) {
+                showToolTipImpl(location, tooltip);
                 activeTooltipArea = location;
             }
         });
@@ -182,47 +166,47 @@ public final class TooltipHandler implements ScreenController, UpdatableHandler 
      * Create a new tooltip. This is the internal implementation that is only called from the update loop.
      *
      * @param location the tooltip should be place around, the area of this rectangle won't be hidden by the tooltip
-     * @param event    the event that contains the data of the tooltip
+     * @param tooltip  the tooltip to display
      */
-    private void showToolTipImpl(final Rectangle location, final AbstractItemLookAtEvent event) {
+    private void showToolTipImpl(@Nonnull final Rectangle location, @Nonnull final Tooltip tooltip) {
         final ToolTipBuilder builder = new ToolTipBuilder("tooltip-" + Long.toString(count++));
-        builder.title(event.getName());
+        builder.title(tooltip.getName());
 
-        switch (event.getRareness()) {
-            case AbstractItemLookAtEvent.RARENESS_UNCOMMON:
+        switch (tooltip.getRareness()) {
+            case Tooltip.RARENESS_UNCOMMON:
                 builder.titleColor("#00a500ff");
                 break;
-            case AbstractItemLookAtEvent.RARENESS_RARE:
+            case Tooltip.RARENESS_RARE:
                 builder.titleColor("#003fbfff");
                 break;
-            case AbstractItemLookAtEvent.RARENESS_EPIC:
+            case Tooltip.RARENESS_EPIC:
                 builder.titleColor("#bb00ffff");
                 break;
-            case AbstractItemLookAtEvent.RARENESS_COMMON:
+            case Tooltip.RARENESS_COMMON:
             default:
                 builder.titleColor(Color.WHITE);
                 break;
         }
 
-        builder.description(event.getDescription());
-        builder.producer(event.getProducer());
-        builder.worth(event.getWorth().getTotalCopper() / 20);
-        if (event.getWeight() > 0) {
-            builder.weight(Integer.toString(event.getWeight()));
+        builder.description(tooltip.getDescription());
+        builder.producer(tooltip.getCraftedBy());
+        builder.worth(tooltip.getWorth().getTotalCopper() / 20);
+        if (tooltip.getWeight() > 0) {
+            builder.weight(Integer.toString(tooltip.getWeight()));
         }
-        builder.quality(event.getQualityText());
-        builder.durability(event.getDurabilityText());
-        builder.amethystLevel(event.getAmethystLevel());
-        builder.obsidianLevel(event.getObsidianLevel());
-        builder.sapphireLevel(event.getSapphireLevel());
-        builder.diamondLevel(event.getDiamondLevel());
-        builder.emeraldLevel(event.getEmeraldLevel());
-        builder.rubyLevel(event.getRubyLevel());
-        builder.topazLevel(event.getTopazLevel());
+        builder.quality(tooltip.getQualityText());
+        builder.durability(tooltip.getDurabilityText());
+        builder.amethystLevel(tooltip.getAmethystLevel());
+        builder.obsidianLevel(tooltip.getObsidianLevel());
+        builder.sapphireLevel(tooltip.getSapphireLevel());
+        builder.diamondLevel(tooltip.getDiamondLevel());
+        builder.emeraldLevel(tooltip.getEmeraldLevel());
+        builder.rubyLevel(tooltip.getRubyLevel());
+        builder.topazLevel(tooltip.getTopazLevel());
 
 
-        if (event.getBonus() > 0) {
-            builder.gemBonus(Integer.toString(event.getBonus()));
+        if (tooltip.getBonus() > 0) {
+            builder.gemBonus(Integer.toString(tooltip.getBonus()));
         }
 
         final Element toolTip = builder.build(parentNifty, parentScreen, toolTipLayer);

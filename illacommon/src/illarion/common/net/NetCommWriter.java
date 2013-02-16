@@ -20,6 +20,8 @@ package illarion.common.net;
 
 import illarion.common.types.Location;
 
+import javax.annotation.Nonnull;
+
 /**
  * This interface offers the possibility to write on a connection handled by the network communication class of
  * Illarion.
@@ -46,7 +48,7 @@ public interface NetCommWriter {
      *
      * @param loc the location that shall be send to the server
      */
-    void writeLocation(Location loc);
+    void writeLocation(@Nonnull Location loc);
 
     /**
      * Write 2 byte as signed value to the network.
@@ -60,7 +62,7 @@ public interface NetCommWriter {
      *
      * @param value the string that shall be send to the server
      */
-    void writeString(String value);
+    void writeString(@Nonnull String value);
 
     /**
      * Write 1 byte as unsigned value to the network.

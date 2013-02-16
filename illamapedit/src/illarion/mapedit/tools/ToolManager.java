@@ -37,15 +37,19 @@ import org.bushe.swing.event.EventBus;
 import org.bushe.swing.event.annotation.AnnotationProcessor;
 import org.bushe.swing.event.annotation.EventSubscriber;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
  * @author Tim
  */
 public final class ToolManager implements Disposable {
     private static final Logger LOGGER = Logger.getLogger(ToolManager.class);
-
+    public static final int TOOL_RADIUS = 10000;
     private final GuiController controller;
     private final RendererManager renderer;
 
+    @Nullable
     private AbstractTool actualTool;
     private TileImg selectedTile;
     private ItemImg selectedItem;
@@ -54,10 +58,10 @@ public final class ToolManager implements Disposable {
         this.controller = controller;
         this.renderer = renderer;
         AnnotationProcessor.process(this);
-        setTool(new SingleTileTool());
+        setTool(new TileBrushTool());
     }
 
-    public void setTool(final AbstractTool tool) {
+    public void setTool(@Nullable final AbstractTool tool) {
         if (tool != null) {
             tool.registerManager(this);
         }
@@ -87,7 +91,7 @@ public final class ToolManager implements Disposable {
 
 
     @EventSubscriber
-    public void clickedAt(final MapClickedEvent e) {
+    public void clickedAt(@Nonnull final MapClickedEvent e) {
         if ((actualTool != null) && (e.getButton() == MouseButton.LeftButton)) {
             actualTool.clickedAt(e.getX(), e.getY(), e.getMap());
             EventBus.publish(new RepaintRequestEvent());
@@ -96,8 +100,8 @@ public final class ToolManager implements Disposable {
     }
 
     @EventSubscriber
-    public void onMapDragged(final MapDraggedEvent e) {
-        if (e.getButton() == MouseButton.LeftButton) {
+    public void onMapDragged(@Nonnull final MapDraggedEvent e) {
+        if ((actualTool != null) && e.getButton() == MouseButton.LeftButton) {
             actualTool.clickedAt(e.getX(), e.getY(), e.getMap());
             EventBus.publish(new RepaintRequestEvent());
             controller.setSaved(false);
@@ -110,21 +114,22 @@ public final class ToolManager implements Disposable {
     }
 
     @EventSubscriber
-    public void onTileSelected(final TileSelectedEvent e) {
+    public void onTileSelected(@Nonnull final TileSelectedEvent e) {
         selectedTile = e.getTileImg();
     }
 
 
     @EventSubscriber
-    public void onItemSelected(final ItemSelectedEvent e) {
+    public void onItemSelected(@Nonnull final ItemSelectedEvent e) {
         selectedItem = e.getItemImg();
     }
 
     @EventSubscriber
-    public void onSelectTool(final ToolSelectedEvent e) {
+    public void onSelectTool(@Nonnull final ToolSelectedEvent e) {
         setTool(e.getTool());
     }
 
+    @Nonnull
     public HistoryManager getHistory() {
         return controller.getHistoryManager();
     }

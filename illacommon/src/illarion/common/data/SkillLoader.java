@@ -24,6 +24,8 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -35,6 +37,7 @@ import java.io.InputStream;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@NotThreadSafe
 class SkillLoader {
     /**
      * This value is turned true once the loading is started.
@@ -80,7 +83,7 @@ class SkillLoader {
      *
      * @param currentNode the node that is the root of the search
      */
-    private static void findGroup(final Node currentNode) {
+    private static void findGroup(@Nonnull final Node currentNode) {
         if ("group".equals(currentNode.getNodeName())) {
             final NamedNodeMap attributes = currentNode.getAttributes();
             final String german = attributes.getNamedItem("german").getNodeValue();
@@ -108,7 +111,7 @@ class SkillLoader {
      * @param parentGroup the group this skills belong to
      * @param parsedNode  the node that is parsed
      */
-    private static void parseSkill(final SkillGroup parentGroup, final Node parsedNode) {
+    private static void parseSkill(@Nonnull final SkillGroup parentGroup, @Nonnull final Node parsedNode) {
         if ("skill".equals(parsedNode.getNodeName())) {
             final NamedNodeMap attributes = parsedNode.getAttributes();
             final int id = Integer.parseInt(attributes.getNamedItem("id").getNodeValue());

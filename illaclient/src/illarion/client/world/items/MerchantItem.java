@@ -22,6 +22,8 @@ import illarion.common.types.ItemCount;
 import illarion.common.types.ItemId;
 import illarion.common.types.Money;
 
+import javax.annotation.Nonnull;
+
 /**
  * This class is able to store a single item that is sold by a NPC merchant.
  *
@@ -117,7 +119,7 @@ public class MerchantItem {
      *
      * @param org the original item to be copied
      */
-    public MerchantItem(final MerchantItem org) {
+    public MerchantItem(@Nonnull final MerchantItem org) {
         index = org.index;
         type = org.type;
         itemId = org.itemId;
@@ -149,6 +151,7 @@ public class MerchantItem {
      *
      * @return the name of the item
      */
+    @Nonnull
     public String getName() {
         return name;
     }
@@ -158,6 +161,7 @@ public class MerchantItem {
      *
      * @return the price of the item
      */
+    @Nonnull
     public Money getPrice() {
         return price;
     }
@@ -176,6 +180,7 @@ public class MerchantItem {
      *
      * @return the bundle size of this item
      */
+    @Nonnull
     public ItemCount getBundleSize() {
         return bundleSize;
     }

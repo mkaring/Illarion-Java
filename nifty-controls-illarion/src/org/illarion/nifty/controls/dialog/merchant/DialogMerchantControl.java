@@ -32,6 +32,7 @@ import org.illarion.nifty.controls.DialogMerchantBuyEvent;
 import org.illarion.nifty.controls.DialogMerchantCloseEvent;
 import org.illarion.nifty.controls.MerchantListEntry;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 import java.util.Properties;
 
@@ -59,22 +60,15 @@ public final class DialogMerchantControl extends WindowControl implements Dialog
     private int dialogId;
 
     /**
-     * Helper variable to prevent double firing close events.
-     */
-    private boolean alreadyClosed;
-
-    /**
      * The event handler that handles the events on the close button.
      */
+    @Nonnull
     private final EventTopicSubscriber<ButtonClickedEvent> closeButtonEventHandler;
 
     public DialogMerchantControl() {
         closeButtonEventHandler = new EventTopicSubscriber<ButtonClickedEvent>() {
             @Override
             public void onEvent(final String topic, final ButtonClickedEvent data) {
-                if (alreadyClosed) {
-                    return;
-                }
                 closeWindow();
             }
         };
@@ -82,12 +76,12 @@ public final class DialogMerchantControl extends WindowControl implements Dialog
 
     @Override
     public void bind(final Nifty nifty, final Screen screen, final Element element, final Properties parameter,
-                     final Attributes controlDefinitionAttributes) {
+                     @Nonnull final Attributes controlDefinitionAttributes) {
         super.bind(nifty, screen, element, parameter, controlDefinitionAttributes);
         niftyInstance = nifty;
         currentScreen = screen;
 
-        dialogId = Integer.parseInt(controlDefinitionAttributes.get("dialogId"));
+        dialogId = Integer.parseInt(controlDefinitionAttributes.getWithDefault("dialogId", "-1"));
     }
 
     @Override
@@ -130,23 +124,42 @@ public final class DialogMerchantControl extends WindowControl implements Dialog
     }
 
     @Override
-    public void addAllSellingItems(final List<MerchantListEntry> entry) {
+    public void addAllSellingItems(@Nonnull final List<MerchantListEntry> entry) {
         getSellList().addAllItems(entry);
     }
 
     @Override
-    public void addSellingItem(final MerchantListEntry entry) {
+    public void addSellingItem(@Nonnull final MerchantListEntry entry) {
         getSellList().addItem(entry);
     }
 
     @Override
-    public void addAllBuyingItems(final List<MerchantListEntry> entry) {
+    public void addAllBuyingItems(@Nonnull final List<MerchantListEntry> entry) {
         getBuyList().addAllItems(entry);
     }
 
     @Override
-    public void addBuyingItem(final MerchantListEntry entry) {
+    public void setDialogId(final int id) {
+        dialogId = id;
+    }
+
+    @Override
+    public int getDialogId() {
+        return dialogId;
+    }
+
+    @Override
+    public void addBuyingItem(@Nonnull final MerchantListEntry entry) {
         getBuyList().addItem(entry);
+    }
+
+    /**
+     * Remove all items from both the buying and the selling list.
+     */
+    @Override
+    public void clearItems() {
+        getSellList().clear();
+        getBuyList().clear();
     }
 
     @SuppressWarnings("unchecked")
@@ -165,7 +178,7 @@ public final class DialogMerchantControl extends WindowControl implements Dialog
                 new DialogMerchantBuyEvent(dialogId, sellList.getItems().get(index), index));
     }
 
-    public void buyItem(final MerchantListEntry entry) {
+    public void buyItem(@Nonnull final MerchantListEntry entry) {
         buyItem(entry.getIndex());
     }
 

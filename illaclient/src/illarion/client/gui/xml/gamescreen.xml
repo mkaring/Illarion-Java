@@ -40,7 +40,7 @@
         <layer id="mainLayer" backgroundColor="#0000" childLayout="center">
             <panel align="center" valign="bottom" childLayout="horizontal">
                 <panel width="600px" align="left" valign="bottom" childLayout="vertical" visibleToMouse="true">
-                    <panel width="*" align="right" valign="top" childLayout="vertical" visibleToMouse="true">
+                    <panel width="600px" align="right" valign="top" childLayout="vertical" visibleToMouse="true">
                         <control name="scrollPanel" id="chatPanel" vertical="true" horizontal="false" height="180px"
                                  width="600px" autoScroll="off" stepSizeY="20" style="nifty-scrollpanel">
                             <panel id="chatLog" childLayout="vertical" width="574px" visibleToMouse="false"/>
@@ -64,7 +64,14 @@
                             </effect>
                         </control>
                         <control name="button" id="openInventoryBtn" style="nifty-button-inventory" valign="bottom"
-                                 focusable="false"/>
+                                 focusable="false" marginRight="10px"/>
+                        <control name="button" id="openQuestBtn" style="nifty-button-quest-log" valign="bottom"
+                                 focusable="false">
+                            <effect>
+                                <onCustom name="imageOverlayPulsate" customKey="pulse" startDelay="0" length="10000"
+                                          filename="data/gui/button/questlog_highlight.png" post="true"/>
+                            </effect>
+                        </control>
                     </panel>
                     <control name="progress" style="illarion-health-bar" width="100%" id="healthBar"/>
                     <panel width="100%" childLayout="horizontal">
@@ -96,9 +103,9 @@
             <panel childLayout="vertical" visible="false" visibleToMouse="false" id="scriptMessagePanel"
                    marginBottom="80px" valign="center" align="center"/>
         </layer>
-        <layer id="windows" childLayout="absolute">
+        <layer id="windows" childLayout="absolute-inside">
             <control id="inventory" name="window" style="nifty-window" title="${gamescreen-bundle.inventory}"
-                     visible="false" width="270px" height="500px" x="400px" hideOnClose="true" visibleToMouse="true">
+                     visible="false" width="270px" height="500px" hideOnClose="true" visibleToMouse="true">
                 <panel childLayout="center">
                     <panel height="448px" width="227px" childLayout="absolute"
                            backgroundImage="data/gui/inventory.png" visibleToMouse="true" halign="center"
@@ -155,6 +162,27 @@
                          height="*" style="nifty-scrollpanel" width="368px" horizontal="false">
                     <panel id="#textContent" childLayout="vertical" width="338px"/>
                 </control>
+            </control>
+            <control id="merchantDialog" name="dialog-merchant" width="500px" visible="false" hideOnClose="true"/>
+            <control id="craftingDialog" name="dialog-crafting" visible="false" hideOnClose="true"/>
+            <control id="questLog" name="window" style="nifty-window" title="${gamescreen-bundle.quest}"
+                     hideOnClose="true" visible="false" width="700px" height="305px">
+                <panel childLayout="horizontal">
+                    <panel childLayout="vertical" width="230px" paddingRight="8px">
+                        <control name="listBox" id="#questList" vertical="optional" horizontal="optional"
+                                 displayItems="10" selection="Single" forceSelection="true" marginBottom="5px"/>
+                        <panel childLayout="horizontal">
+                            <control name="checkbox" id="#showFinishedCheckbox" marginRight="4px"/>
+                            <control name="label" text="${gamescreen-bundle.showFinishedQuests}" paddingLeft="5px"/>
+                        </panel>
+                    </panel>
+                    <panel childLayout="horizontal" style="nifty-panel">
+                        <control name="scrollPanel" childLayout="vertical" autoScroll="off"
+                                 stepSizeY="20" height="*" style="nifty-scrollpanel" horizontal="false">
+                            <panel id="#questDescription" childLayout="vertical" width="100%"/>
+                        </control>
+                    </panel>
+                </panel>
             </control>
         </layer>
         <layer id="tooltipLayer" childLayout="absolute" visibleToMouse="false"/>

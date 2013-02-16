@@ -21,108 +21,59 @@ package illarion.client.graphics;
 import illarion.client.input.ClickOnMapEvent;
 import illarion.client.resources.Resource;
 import illarion.client.resources.TileFactory;
+import illarion.client.resources.data.TileTemplate;
+import illarion.client.world.MapGroup;
 import illarion.client.world.MapTile;
 import illarion.client.world.World;
 import illarion.common.graphics.MapVariance;
 import illarion.common.graphics.TileInfo;
 import illarion.common.types.Location;
+import org.apache.log4j.Logger;
 import org.newdawn.slick.Color;
 import org.newdawn.slick.GameContainer;
 import org.newdawn.slick.Graphics;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
- * Created: 20.08.2005 17:39:11
+ * This class represents one tile on the screen.
+ *
+ * @author Martin Karing &lt;nitram@illarion.org&gt;
+ * @author Nop
  */
-public class Tile extends AbstractEntity implements Resource {
-    private static final int BASE_MASK = 0x001F;
-    private static final int OVERLAY_MASK = 0x03E0;
-    private static final int SHAPE_MASK = 0xFC00;
+@SuppressWarnings("ClassNamingConvention")
+public class Tile extends AbstractEntity<TileTemplate> implements Resource {
+    @Nullable
+    private final FrameAnimation animation;
 
-    @SuppressWarnings("nls")
-    private static final String TILE_PATH = "data/tiles/";
-
-    private transient final FrameAnimation ani;
-
-    private transient final TileInfo info;
-
+    @Nullable
     private Overlay overlay;
 
     private final boolean variants;
-    private MapTile parentTile;
 
-    /**
-     * Create tile with animation or variants
-     */
-    public Tile(final int id, final String name, final int frames,
-                final int speed, final TileInfo info) {
-        super(id, TILE_PATH, name, frames, 0, 0, 0, 0, Sprite.HAlign.center,
-                Sprite.VAlign.middle, false, false, null);
+    @Nonnull
+    private final MapTile parentTile;
 
-        this.info = info;
+    public Tile(final TileTemplate template, @Nonnull final MapTile parentTile) {
+        super(template);
 
-        // an animated tile
-        if (speed > 0) {
+        if (template.getAnimationSpeed() > 0) {
             // start animation right away. All tiles of this type will share it
-            ani = new FrameAnimation(null);
-            ani.setup(frames, 0, speed, FrameAnimation.LOOPED);
+            animation = template.getSharedAnimation();
             variants = false;
-        } else if (frames > 1) { // a tile with variants
+        } else if (template.getFrames() > 1) { // a tile with variants
             variants = true;
-            ani = null;
+            animation = null;
         } else {
-            ani = null;
+            animation = null;
             variants = false;
         }
-        reset();
+        this.parentTile = parentTile;
     }
 
-    /**
-     * Create static tile
-     *
-     * @param id
-     * @param name
-     */
-    public Tile(final int id, final String name, final TileInfo info) {
-        this(id, name, 1, 0, info);
-    }
-
-    /**
-     * Copy constructor for duplicates
-     *
-     * @param org
-     */
-    private Tile(final Tile org) {
-        super(org);
-
-        // copy the animation, too, so that all tiles share the same cycle
-        ani = org.ani;
-        info = org.info;
-        variants = org.variants;
-        reset();
-    }
-
-    /**
-     * Return the base id of a tile
-     *
-     * @param id
-     * @return
-     */
-    public static int baseID(final int id) {
-        if ((id & SHAPE_MASK) > 0) {
-            return id & BASE_MASK;
-        }
-        return id;
-    }
-
-    public static Tile create(final int id, final Location loc, final MapTile parentTile) {
+    public static Tile create(final int id, @Nonnull final Location loc, final MapTile parentTile) {
         return create(id, loc.getScX(), loc.getScY(), parentTile);
-    }
-
-    public static int overlayID(final int id) {
-        if ((id & SHAPE_MASK) > 0) {
-            return (id & OVERLAY_MASK) >> 5;
-        }
-        return 0;
     }
 
     /**
@@ -131,55 +82,39 @@ public class Tile extends AbstractEntity implements Resource {
      * @param id complex id
      * @param x  the x coordinate where the tile is supposed to be created
      * @param y  the y coordinate of the location where the tile is supposed to be created
-     * @return
+     * @return the created instance of the tile
      */
     @SuppressWarnings("nls")
-    private static Tile create(int id, final int x, final int y, final MapTile parentTile) {
-        Tile tile;
-
-        // split id into overlay and tile
-        final int overlayShape = (id & SHAPE_MASK) >> 10;
-        int overlayId = 0;
-        if (overlayShape > 0) {
-            overlayId = Tile.overlayID(id);
-            id = Tile.baseID(id);
-        }
-
+    private static Tile create(final int id, final int x, final int y, @Nonnull final MapTile parentTile) {
         // instantiate tile
-        tile = TileFactory.getInstance().getCommand(id);
+        final TileTemplate tileTemplate = TileFactory.getInstance().getTemplate(TileInfo.getBaseID(id));
+        final Tile tile = new Tile(tileTemplate, parentTile);
         // if it is a variants tile, set coordinates
         if (tile.variants) {
             tile.setVariant(x, y);
         }
 
-        if (overlayId > 0) {
-            tile.setOverlay(Overlay.create(overlayId, overlayShape));
+        if (TileInfo.hasOverlay(id)) {
+            tile.setOverlay(Overlay.create(TileInfo.getOverlayID(id), TileInfo.getShapeId(id), tile));
         }
 
-        tile.parentTile = parentTile;
-
         return tile;
-    }
-
-    @Override
-    public void activate(final int id) {
-        // no mapping possible
-        // this.id = id;
-    }
-
-    @Override
-    public Tile clone() {
-        return new Tile(this);
     }
 
     /**
      * Draw tile and its overlay
      *
      * @param g the graphics object that is used to render the tile.
-     * @return
+     * @return {@code true} in case the object was properly rendered
      */
     @Override
-    public boolean draw(final Graphics g) {
+    public boolean draw(@Nonnull final Graphics g) {
+        final MapTile obstructingTile = parentTile.getObstructingTile();
+        if ((obstructingTile != null) && obstructingTile.isOpaque()) {
+            // do not render tiles that are not visible for sure
+            return true;
+        }
+
         if (!super.draw(g)) {
             return false;
         }
@@ -190,62 +125,24 @@ public class Tile extends AbstractEntity implements Resource {
         return true;
     }
 
-    public int getMapColor() {
-        return info.getMapColor();
-    }
-
-    public int getMovementCost() {
-        return info.getMovementCost();
-    }
-
-    public boolean isObstacle() {
-        return info.getMovementCost() == 0;
-    }
-
-    public boolean isOpapue() {
-        return info.isOpaque() && !isTransparent();
-    }
-
     @Override
-    public void recycle() {
-        hide();
-        if (ani != null) {
-            ani.removeTarget(this);
-        }
+    public void markAsRemoved() {
+        super.markAsRemoved();
         if (overlay != null) {
-            overlay.recycle();
-            overlay = null;
-        }
-        parentTile = null;
-        TileFactory.getInstance().recycle(this);
-    }
-
-    @Override
-    public void setLight(final Color light) {
-        super.setLight(light);
-        if (overlay != null) {
-            overlay.setLight(light);
+            overlay.markAsRemoved();
         }
     }
 
     /**
      * Assign overlay to tile
      *
-     * @param overlay
+     * @param overlay the overlay
      */
-    public void setOverlay(final Overlay overlay) {
+    public void setOverlay(@Nullable final Overlay overlay) {
         this.overlay = overlay;
         setFadingCorridorEffectEnabled(overlay == null);
     }
 
-    /**
-     * Set position of tile and its overlays
-     *
-     * @param x
-     * @param y
-     * @param z
-     * @param layer
-     */
     @Override
     public void setScreenPos(final int x, final int y, final int z,
                              final int layer) {
@@ -255,27 +152,53 @@ public class Tile extends AbstractEntity implements Resource {
         }
     }
 
-    /**
-     * Add tile to display list
-     */
     @Override
     public void show() {
+        final MapGroup group = parentTile.getMapGroup();
+        if ((group != null) && group.isHidden()) {
+            setAlphaTarget(0);
+            setAlpha(0);
+            setFadingCorridorEffectEnabled(false);
+        } else {
+            setFadingCorridorEffectEnabled(overlay == null);
+        }
         super.show();
-        if (ani != null) {
-            ani.addTarget(this, true);
+        if (animation != null) {
+            animation.addTarget(this, true);
         }
     }
 
     @Override
-    public void update(final GameContainer c, final int delta) {
-        super.update(c, delta);
+    public void hide() {
+        super.hide();
+        if (animation != null) {
+            animation.removeTarget(this);
+        }
+    }
+
+    @Override
+    public void update(@Nonnull final GameContainer container, final int delta) {
+        final MapGroup group = parentTile.getMapGroup();
+        if ((group != null) && group.isHidden()) {
+            setAlphaTarget(0);
+            setFadingCorridorEffectEnabled(false);
+        } else {
+            setFadingCorridorEffectEnabled(overlay == null);
+        }
+        super.update(container, delta);
         if (overlay != null) {
-            overlay.update(c, delta);
+            overlay.update(container, delta);
         }
     }
 
+    /**
+     * The instance of the logging class for this class.
+     */
+    @SuppressWarnings("UnusedDeclaration")
+    private static final Logger LOGGER = Logger.getLogger(Tile.class);
+
     @Override
-    public boolean processEvent(final GameContainer c, final int delta, final MapInteractionEvent event) {
+    public boolean processEvent(@Nonnull final GameContainer container, final int delta, @Nonnull final MapInteractionEvent event) {
         if (!parentTile.isAtPlayerLevel()) {
             return false;
         }
@@ -298,10 +221,22 @@ public class Tile extends AbstractEntity implements Resource {
     /**
      * Determine the graphical variant from the x/y coordinates
      *
-     * @param x
-     * @param y
+     * @param x the x coordinate used to get the variant
+     * @param y the y coordinate used to get the variant
      */
     protected final void setVariant(final int x, final int y) {
-        setFrame(MapVariance.getTileFrameVariance(x, y, getFrames()));
+        setFrame(MapVariance.getTileFrameVariance(x, y, getTemplate().getFrames()));
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p/>
+     * This implementation of the parent light fetches the light of the parent tile in order to ensure that the same
+     * color value is used.
+     */
+    @Override
+    @Nonnull
+    protected Color getParentLight() {
+        return parentTile.getLight();
     }
 }

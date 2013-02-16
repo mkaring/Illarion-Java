@@ -20,11 +20,11 @@ package illarion.client.net.server;
 
 import illarion.client.net.CommandList;
 import illarion.client.net.annotations.ReplyMessage;
-import illarion.client.net.server.events.DialogInputReceivedEvent;
+import illarion.client.world.World;
 import illarion.common.net.NetCommReader;
 import javolution.text.TextBuilder;
-import org.bushe.swing.event.EventBus;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
@@ -67,7 +67,7 @@ public final class DialogInputMsg
      * @throws IOException thrown in case there was not enough data received to decode the full message
      */
     @Override
-    public void decode(final NetCommReader reader)
+    public void decode(@Nonnull final NetCommReader reader)
             throws IOException {
         title = reader.readString();
         description = reader.readString();
@@ -83,7 +83,7 @@ public final class DialogInputMsg
      */
     @Override
     public boolean executeUpdate() {
-        EventBus.publish(new DialogInputReceivedEvent(requestId, title, description, maxCharacters, multiLine));
+        World.getGameGui().getDialogInputGui().showInputDialog(requestId, title, description, maxCharacters, multiLine);
 
         return true;
     }
@@ -93,6 +93,7 @@ public final class DialogInputMsg
      *
      * @return the string that contains the values that were decoded for this message
      */
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {

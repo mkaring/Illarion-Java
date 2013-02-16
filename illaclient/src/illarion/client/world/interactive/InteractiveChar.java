@@ -18,23 +18,24 @@
  */
 package illarion.client.world.interactive;
 
-import illarion.client.net.CommandFactory;
-import illarion.client.net.CommandList;
-import illarion.client.net.client.MoveCmd;
 import illarion.client.world.Char;
-import illarion.client.world.World;
 import illarion.common.types.ItemCount;
 import illarion.common.types.Location;
+
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.Immutable;
 
 /**
  * This class represents the interactive variant of a character.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class InteractiveChar extends AbstractDraggable implements DropTarget {
+@Immutable
+public final class InteractiveChar implements Draggable, DropTarget {
     /**
      * The character this interactive reference points to.
      */
+    @Nonnull
     private final Char parentChar;
 
     /**
@@ -42,7 +43,7 @@ public class InteractiveChar extends AbstractDraggable implements DropTarget {
      *
      * @param parent the character this interactive reference points to
      */
-    public InteractiveChar(final Char parent) {
+    public InteractiveChar(@Nonnull final Char parent) {
         parentChar = parent;
     }
 
@@ -50,7 +51,7 @@ public class InteractiveChar extends AbstractDraggable implements DropTarget {
      * Drag one character to another character. Does nothing currently.
      */
     @Override
-    public void dragTo(final InteractiveChar targetChar, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveChar targetChar, @Nonnull final ItemCount count) {
         // nothing
     }
 
@@ -58,7 +59,7 @@ public class InteractiveChar extends AbstractDraggable implements DropTarget {
      * Dragging the character into the inventory does nothing at all.
      */
     @Override
-    public void dragTo(final InteractiveInventorySlot targetSlot, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveInventorySlot targetSlot, @Nonnull final ItemCount count) {
         // nothing
     }
 
@@ -67,28 +68,12 @@ public class InteractiveChar extends AbstractDraggable implements DropTarget {
      * character.
      */
     @Override
-    public void dragTo(final InteractiveMapTile targetTile, final ItemCount count) {
-        if (!isInInteractionRange()) {
-            return;
-        }
-
-        final int pushingDir =
-                getLocation().getDirection(targetTile.getLocation());
-
-        if (pushingDir == Location.DIR_ZERO) {
-            return;
-        }
-
-        final MoveCmd cmd =
-                CommandFactory.getInstance().getCommand(CommandList.CMD_MOVE,
-                        MoveCmd.class);
-        cmd.setDirection(parentChar.getCharId(), pushingDir);
-        cmd.setPushing();
-        cmd.send();
+    public void dragTo(@Nonnull final InteractiveMapTile targetTile, @Nonnull final ItemCount count) {
+        // nothing
     }
 
     @Override
-    public void dragTo(final InteractiveContainerSlot targetSlot, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveContainerSlot targetSlot, @Nonnull final ItemCount count) {
         // nothing
     }
 
@@ -97,18 +82,8 @@ public class InteractiveChar extends AbstractDraggable implements DropTarget {
      *
      * @return the location of the character on the map
      */
+    @Nonnull
     public Location getLocation() {
         return parentChar.getLocation();
-    }
-
-    /**
-     * Check if this character is inside the range, where the player is able to
-     * interact with this character.
-     *
-     * @return <code>true</code> if this character is within reach of the player
-     *         character
-     */
-    public boolean isInInteractionRange() {
-        return World.getPlayer().getLocation().getDistance(getLocation()) < 2;
     }
 }

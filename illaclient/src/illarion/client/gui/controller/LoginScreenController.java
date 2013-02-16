@@ -33,8 +33,11 @@ import de.lessvoid.nifty.screen.Screen;
 import de.lessvoid.nifty.screen.ScreenController;
 import illarion.client.IllaClient;
 import illarion.client.Login;
+import illarion.client.resources.SongFactory;
 import illarion.client.util.Lang;
-import illarion.client.world.World;
+import org.newdawn.slick.Music;
+
+import javax.annotation.Nonnull;
 
 /**
  * This is the screen controller that takes care of displaying the login screen.
@@ -105,7 +108,7 @@ public final class LoginScreenController implements ScreenController, KeyInputHa
     }
 
     @Override
-    public void bind(final Nifty nifty, final Screen screen) {
+    public void bind(@Nonnull final Nifty nifty, @Nonnull final Screen screen) {
         this.nifty = nifty;
         this.screen = screen;
 
@@ -128,8 +131,10 @@ public final class LoginScreenController implements ScreenController, KeyInputHa
 
     @Override
     public void onStartScreen() {
-        World.getMusicBox().playMusicTrack(0);
-        World.getMusicBox().update(0);
+        final Music creditsMusic = SongFactory.getInstance().getSong(2);
+        if ((creditsMusic != null) && creditsMusic.playing()) {
+            creditsMusic.fade(500, 0.f, true);
+        }
     }
 
     @Override
@@ -217,7 +222,7 @@ public final class LoginScreenController implements ScreenController, KeyInputHa
      * synchronized to the Nifty-GUI update loop.
      */
     public void update() {
-        if (!receivedLoginResponse) {
+        if (!receivedLoginResponse || (nifty.getCurrentScreen() != screen)) {
             return;
         }
 

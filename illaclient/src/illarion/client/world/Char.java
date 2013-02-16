@@ -22,9 +22,6 @@ import illarion.client.graphics.AnimatedMove;
 import illarion.client.graphics.Avatar;
 import illarion.client.graphics.AvatarClothManager;
 import illarion.client.graphics.MoveAnimation;
-import illarion.client.net.CommandFactory;
-import illarion.client.net.CommandList;
-import illarion.client.net.client.LookatCharCmd;
 import illarion.client.net.server.events.AttributeUpdateReceivedEvent;
 import illarion.client.resources.ItemFactory;
 import illarion.client.util.Lang;
@@ -38,55 +35,57 @@ import illarion.common.graphics.LightSource;
 import illarion.common.types.CharacterId;
 import illarion.common.types.ItemId;
 import illarion.common.types.Location;
-import illarion.common.util.RecycleObject;
+import illarion.common.util.FastMath;
 import org.apache.log4j.Logger;
 import org.bushe.swing.event.EventBus;
 import org.bushe.swing.event.annotation.AnnotationProcessor;
 import org.bushe.swing.event.annotation.EventSubscriber;
 import org.newdawn.slick.Color;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import java.util.EnumMap;
 import java.util.Map;
 
 /**
  * Represents a character: player, monster or npc.
+ *
+ * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class Char
-        implements RecycleObject, AnimatedMove {
-
-    /**
-     * The color that is used to show combat characters.
-     */
-    private static final Color COMBAT_COLOR;
-
-    /**
-     * The color that is used to show dead characters.
-     */
-    private static final Color DEAD_COLOR;
-
+@SuppressWarnings("ClassNamingConvention")
+@NotThreadSafe
+public final class Char implements AnimatedMove {
     /**
      * The speed a animation runs with on default.
      */
     public static final int DEFAULT_ANIMATION_SPEED = 5;
 
     /**
+     * The color that is used to show dead characters.
+     */
+    @Nonnull
+    private static final Color DEAD_COLOR;
+
+    /**
      * Light Update status SET light value.
      */
-    private static final int LIGHT_SET = 1;
+    public static final int LIGHT_SET = 1;
 
     /**
      * Light Update status SOFTly change value.
      */
-    protected static final int LIGHT_SOFT = 2;
+    public static final int LIGHT_SOFT = 2;
 
     /**
      * Light Update status UPDATE light value.
      */
-    protected static final int LIGHT_UPDATE = 3;
+    public static final int LIGHT_UPDATE = 3;
 
     /**
      * The instance of the logger that is used to write out the data.
      */
+    @Nonnull
     private static final Logger LOGGER = Logger.getLogger(Char.class);
 
     /**
@@ -97,42 +96,7 @@ public final class Char
     /**
      * Minimal scale value for the character.
      */
-    private static final float MINIMAL_SCALE = 0.5f;
-
-    /**
-     * Move mode constant for a pushed move.
-     */
-    public static final int MOVE_PUSH = 0;
-
-    /**
-     * Move mode constant for a running move.
-     */
-    public static final int MOVE_RUN = 2;
-
-    /**
-     * Move mode constant for a walking move.
-     */
-    public static final int MOVE_WALK = 1;
-
-    /**
-     * Minimum scale. Below the avatar does not get a title for example and is not recognized at all.
-     */
-    private static final float SCALE_MIN = 0.1f;
-
-    /**
-     * Scale modifier that is needed at least so a prefix for a small character is prepended.
-     */
-    private static final float SCALE_SMALL = 0.8f;
-
-    /**
-     * Scale modifier that is needed at least so a prefix for a tall character is prepended.
-     */
-    private static final float SCALE_TALL = 1.05f;
-
-    /**
-     * Scale modifier that is needed at least so a prefix for a tiny character is prepended.
-     */
-    private static final float SCALE_TINY = 0.6f;
+    private static final float MINIMAL_SCALE = 0.8f;
 
     /**
      * Modifier to calculate the alpha value from the visibility.
@@ -142,24 +106,28 @@ public final class Char
     /**
      * Maximum value for visibility.
      */
-    protected static final int VISIBILITY_MAX = 100;
-
-    static {
-        DEAD_COLOR = new Color(1.f, 1.f, 1.f, 0.45f);
-        COMBAT_COLOR = new Color(1.f, 0.6f, 0.6f, 1.f);
-    }
+    public static final int VISIBILITY_MAX = 100;
 
     /**
-     * Create a new character, using the GameFactory.
-     *
-     * @return the new character
+     * This color is used to display the name in case the character is a player character.
      */
-    protected static Char create() {
-        return (Char) GameFactory.getInstance().getCommand(GameFactory.OBJ_CHARACTER);
-    }
+    @Nonnull
+    private static final Color NAME_COLOR_HUMAN = Color.yellow;
 
     /**
-     * The alive state of the character. <code>true</code> in caes the character is alive.
+     * This color is used to display the name in case the character is a monster.
+     */
+    @Nonnull
+    private static final Color NAME_COLOR_MONSTER = Color.red;
+
+    /**
+     * This color is used to display the name in case the character is a NPC.
+     */
+    @Nonnull
+    private static final Color NAME_COLOR_NPC = new Color(128, 179, 255);
+
+    /**
+     * The alive state of the character. <code>true</code> in case the character is alive.
      */
     private boolean alive;
 
@@ -176,6 +144,7 @@ public final class Char
     /**
      * Avatar of the character.
      */
+    @Nullable
     private Avatar avatar;
 
     /**
@@ -186,6 +155,7 @@ public final class Char
     /**
      * Character ID the the character.
      */
+    @Nullable
     private CharacterId charId;
 
     /**
@@ -196,16 +166,19 @@ public final class Char
     /**
      * X-Offset for the current move.
      */
+    @SuppressWarnings("InstanceVariableNamingConvention")
     private int dX;
 
     /**
      * Y-Offset for the current move.
      */
+    @SuppressWarnings("InstanceVariableNamingConvention")
     private int dY;
 
     /**
      * Z-Offset for the current move.
      */
+    @SuppressWarnings("InstanceVariableNamingConvention")
     private int dZ;
 
     /**
@@ -221,6 +194,7 @@ public final class Char
     /**
      * Current light source of the character.
      */
+    @Nullable
     private LightSource lightSrc;
 
     /**
@@ -231,23 +205,25 @@ public final class Char
     /**
      * Current Location of the character on the map.
      */
-    private transient final Location loc;
-
-    private int manapoints;
+    @Nonnull
+    private final Location charLocation;
 
     /**
      * Move animation handler for this character.
      */
-    private transient final MoveAnimation move;
+    @Nonnull
+    private final MoveAnimation move;
 
     /**
      * Name of the character.
      */
+    @Nullable
     private String name;
 
     /**
      * Color of the name of the character. default, melee fighting, distance fighting, magic
      */
+    @Nullable
     private Color nameColor;
 
     /**
@@ -258,7 +234,8 @@ public final class Char
     /**
      * The custom color of the characters skin.
      */
-    private transient Color skinColor;
+    @Nullable
+    private Color skinColor;
 
     /**
      * Visibility bonus of the character (for large characters).
@@ -271,23 +248,26 @@ public final class Char
     /**
      * A list of items this avatar wears. This list is send to the avatar at a update.
      */
+    @Nonnull
     private final int[] wearItems = new int[AvatarClothManager.GROUP_COUNT];
 
     /**
      * A list of modified colors of the stuff a avatar wears.
      */
-    private final transient Color[] wearItemsColors = new Color[AvatarClothManager.GROUP_COUNT];
+    @Nonnull
+    private final Color[] wearItemsColors = new Color[AvatarClothManager.GROUP_COUNT];
 
     /**
      * This map stores the attribute values of this character.
      */
+    @Nonnull
     private final Map<CharacterAttribute, Integer> attributes;
 
     /**
      * Constructor to create a new character.
      */
     public Char() {
-        loc = new Location();
+        charLocation = new Location();
         move = new MoveAnimation(this);
 
         attributes = new EnumMap<CharacterAttribute, Integer>(CharacterAttribute.class);
@@ -295,6 +275,12 @@ public final class Char
         scale = 0;
         animation = CharAnimations.STAND;
         avatarId = -1;
+
+        AnnotationProcessor.process(this);
+    }
+
+    static {
+        DEAD_COLOR = new Color(1.f, 1.f, 1.f, 0.45f);
     }
 
     /**
@@ -303,7 +289,10 @@ public final class Char
      * @param attribute the attribute to fetch
      * @return the value of the attribute
      */
-    public int getAttribute(final CharacterAttribute attribute) {
+    public int getAttribute(@Nonnull final CharacterAttribute attribute) {
+        if (removedCharacter) {
+            LOGGER.warn("Fetching the attributes of a removed character.");
+        }
         if (attributes.containsKey(attribute)) {
             return attributes.get(attribute);
         }
@@ -311,8 +300,12 @@ public final class Char
     }
 
     @EventSubscriber
-    public void onAttributeUpdateReceived(final AttributeUpdateReceivedEvent event) {
+    public void onAttributeUpdateReceived(@Nonnull final AttributeUpdateReceivedEvent event) {
         if (!event.getTargetCharId().equals(getCharId())) {
+            return;
+        }
+
+        if (removedCharacter) {
             return;
         }
 
@@ -327,343 +320,13 @@ public final class Char
     }
 
     /**
-     * Activate the character. That method is unused
-     *
-     * @param id parameter is not in use
-     */
-    @Override
-    public void activate(final int id) {
-        AnnotationProcessor.process(this);
-    }
-
-    /**
-     * Stop the walking animation of the character.
-     *
-     * @param ok not in use
-     */
-    @Override
-    public void animationFinished(final boolean ok) {
-        resetAnimation();
-    }
-
-    /**
-     * Create a copy of this character.
-     *
-     * @return new character object
-     */
-    @Override
-    public Char clone() {
-        return new Char();
-    }
-
-    /**
-     * Execute a lookat at the character with a special mode.
-     *
-     * @param mode the mode that is used to look at the character
-     */
-    public void examineChar(final int mode) {
-        final LookatCharCmd cmd = (LookatCharCmd) CommandFactory.getInstance().getCommand(CommandList.CMD_LOOKAT_CHAR);
-        cmd.examine(charId, mode);
-        cmd.send();
-    }
-
-    /**
-     * Get the current avatar of the character.
-     *
-     * @return the avatar of the character
-     */
-    public Avatar getAvatar() {
-        return avatar;
-    }
-
-    /**
      * Get the character ID of the character.
      *
      * @return the ID of the character
      */
+    @Nullable
     public CharacterId getCharId() {
         return charId;
-    }
-
-    /**
-     * Get the current direction the character is looking at.
-     *
-     * @return the direction value
-     */
-    public int getDirection() {
-        return direction;
-    }
-
-    @Deprecated
-    public int getFoodpoints() {
-        return getAttribute(CharacterAttribute.FoodPoints);
-    }
-
-    @Deprecated
-    public int getHitpoints() {
-        return getAttribute(CharacterAttribute.HitPoints);
-    }
-
-    /**
-     * Get the ID of the recycle object type.
-     *
-     * @return ID of the recycle object type
-     */
-    @Override
-    public int getId() {
-        return GameFactory.OBJ_CHARACTER;
-    }
-
-    /**
-     * Get a interactive reference to this character.
-     *
-     * @return a interactive reference to this character
-     */
-    public InteractiveChar getInteractive() {
-        return new InteractiveChar(this);
-    }
-
-    /**
-     * Get the current location of the character.
-     *
-     * @return the location of the character
-     */
-    public Location getLocation() {
-        return loc;
-    }
-
-    public int getManapoints() {
-        return manapoints;
-    }
-
-    /**
-     * Get the name of the character.
-     *
-     * @return the name of the character
-     */
-    public String getName() {
-        if (name == null) {
-            return Lang.getMsg("chat.someone"); //$NON-NLS-1$
-        }
-        return name;
-    }
-
-    /**
-     * Get the visibility bonus value.
-     *
-     * @return visibility bonus value
-     */
-    public int getVisibilityBonus() {
-        return visibilityBonus;
-    }
-
-    /**
-     * Check if a cloth item is defined in a specified group.
-     *
-     * @param avatar the avatar to update
-     * @param slot   the slot where the item shall be checked
-     * @param id     the id of the item that shall be checked
-     * @return <code>true</code> in case a item is defined and displayable
-     */
-    @SuppressWarnings("nls")
-    public boolean hasWearingItem(final Avatar avatar, final int slot, final int id) {
-        if ((slot < 0) || (slot >= AvatarClothManager.GROUP_COUNT)) {
-            LOGGER.warn("Wearing item check on invalid slot: " + slot);
-            return false;
-        }
-
-        if (id == 0) {
-            return false;
-        }
-
-        return (avatar == null) || avatar.clothItemExist(slot, id);
-
-    }
-
-    /**
-     * Check if the character is a monster.
-     *
-     * @return true if the character is a monster, false if not.
-     */
-    public boolean isMonster() {
-        return charId.isMonster();
-    }
-
-    /**
-     * Check if the character is a npc.
-     *
-     * @return true if the character is a npc, false if not.
-     */
-    public boolean isNPC() {
-        return charId.isNPC();
-    }
-
-    /**
-     * Check if the character is a human controlled character.
-     *
-     * @return {@code true} if the character is a human controlled character
-     */
-    public boolean isHuman() {
-        return charId.isHuman();
-    }
-
-    /**
-     * Check if the character is visible or not.
-     *
-     * @return true if the character is visible, false if not
-     */
-    public boolean isVisible() {
-        return visible;
-    }
-
-    /**
-     * Move the character to a new position with animation. This function takes absolute coordinates.
-     *
-     * @param newPos the target location of the move
-     * @param mode   the mode of the move, possible values are {@link #MOVE_PUSH}, {@link #MOVE_WALK} and {@link
-     *               #MOVE_RUN}
-     * @param speed  moving speed
-     */
-    public void moveTo(final Location newPos, final int mode, final int speed) {
-        // get old position
-        final Location tempLoc = new Location();
-        tempLoc.set(loc);
-        loc.set(newPos);
-
-        if (tempLoc.equals(loc)) {
-            return;
-        }
-
-        updateLight(loc);
-
-        // determine general visibility by players
-        setVisible(World.getPlayer().canSee(this));
-        if (!visible || (avatar == null)) {
-            return;
-        }
-
-        // calculate movement direction
-        final int dir = tempLoc.getDirection(loc);
-
-        // turn only when animating, not when pushed
-        if ((mode != MOVE_PUSH) && (dir != Location.DIR_ZERO)) {
-            setDirection(dir);
-        }
-
-        // find target elevation
-        final int fromElevation = elevation;
-        elevation = World.getMap().getElevationAt(loc);
-
-        int range = 1;
-        if (mode == MOVE_RUN) {
-            range = 2;
-        }
-
-        // start animations only if reasonable distance
-        if ((loc.getDistance(tempLoc) <= range) && (speed > 0) && (dir != Location.DIR_ZERO) && (mode != MOVE_PUSH)) {
-            if (mode == MOVE_WALK) {
-                startAnimation(CharAnimations.WALK, speed);
-            } else if (mode == MOVE_RUN) {
-                startAnimation(CharAnimations.RUN, speed);
-            }
-            move.start(tempLoc.getDcX() - loc.getDcX(), (tempLoc.getDcY() - fromElevation) - loc.getDcY(), 0, 0,
-                    -elevation, 0, speed);
-        } else {
-            // reset last animation result
-            dX = 0;
-            dY = 0;
-            dZ = 0;
-            updatePosition(elevation);
-        }
-        updateLight(LIGHT_SOFT);
-
-        EventBus.publish(new CharMoveEvent(getCharId(), loc));
-    }
-
-    /**
-     * Check if its possible to update the Avatar of this character.
-     *
-     * @return <code>true</code> in case the avatar is updateable
-     */
-    public boolean readyForUpdate() {
-        return (avatar != null);
-    }
-
-    /**
-     * Remove the character and put it back into the factory.
-     */
-    @Override
-    public void recycle() {
-        GameFactory.getInstance().recycle(this);
-    }
-
-    /**
-     * Release the current avatar and free the resources.
-     */
-    private void releaseAvatar() {
-        if (avatar != null) {
-            avatar.recycle();
-            avatar = null;
-            avatarId = -1;
-        }
-    }
-
-    /**
-     * Put the light source of the character into the list of light sources that are rendered.
-     */
-    public void relistLight() {
-        if (lightSrc != null) {
-            World.getLights().remove(lightSrc);
-            LightSource.releaseLight(lightSrc);
-            lightSrc = LightSource.createLight(loc, lightValue);
-            World.getLights().add(lightSrc);
-        }
-    }
-
-    /**
-     * Reset the character object and free the resources.
-     */
-    @Override
-    public void reset() {
-        AnnotationProcessor.unprocess(this);
-        // stop animation
-        move.stop();
-        resetAnimation();
-        resetLight();
-        releaseAvatar();
-
-        name = null;
-        dX = 0;
-        dY = 0;
-        appearance = 0;
-        direction = 0;
-        charId = null;
-        visible = false;
-        skinColor = null;
-        attributes.clear();
-    }
-
-    /**
-     * Set the current animation back to its parent, update the avatar and invoke the needed animations.
-     */
-    private void resetAnimation() {
-        animation = CharAnimations.STAND;
-        updateAvatar();
-        if (avatar != null) {
-            avatar.animate(DEFAULT_ANIMATION_SPEED, true);
-        }
-    }
-
-    /**
-     * Remove the current light source of the character.
-     */
-    public void resetLight() {
-        if (lightSrc != null) {
-            World.getLights().remove(lightSrc);
-            LightSource.releaseLight(lightSrc);
-            lightSrc = null;
-            lightValue = 0;
-        }
     }
 
     /**
@@ -672,6 +335,11 @@ public final class Char
      * @param newAliveState set the new alive state. <code>true</code> in case the character is alive.
      */
     public void setAlive(final boolean newAliveState) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to update the alive state of a removed character.");
+            return;
+        }
+
         if (alive == newAliveState) {
             return;
         }
@@ -700,237 +368,37 @@ public final class Char
     }
 
     /**
-     * Change the appearance of the character.
+     * Stop the walking animation of the character.
      *
-     * @param newAppearance the new appearance value
-     */
-    public void setAppearance(final int newAppearance) {
-        appearance = newAppearance;
-        resetAnimation();
-    }
-
-    /**
-     * Set or remove the marker from the character that selects the character as active combat target.
-     *
-     * @param activate <code>true</code> to enable the combat target marker on this character
-     */
-    public void setAttackMarker(final boolean activate) {
-        if (avatar == null) {
-            return;
-        }
-
-        avatar.setAttackMarkerVisible(activate);
-    }
-
-    /**
-     * Change the ID of the character.
-     *
-     * @param newCharId new ID of the character
-     */
-    @SuppressWarnings("nls")
-    public void setCharId(final CharacterId newCharId) {
-        charId = newCharId;
-    }
-
-    /**
-     * Update the color of a specified cloth part.
-     *
-     * @param slot  the slot that shall be changed
-     * @param color the color this part shall be displayed in
-     */
-    public void setClothColor(final int slot, final Color color) {
-        wearItemsColors[slot] = new Color(color);
-        if (avatar != null) {
-            avatar.changeClothColor(slot, color);
-        }
-    }
-
-    /**
-     * Change the direction the character is looking at.
-     *
-     * @param newDirection the new direction value
-     */
-    public void setDirection(final int newDirection) {
-        direction = newDirection;
-        resetAnimation();
-    }
-
-    /**
-     * Set the new location of the character.
-     *
-     * @param newLoc new location of the character
-     */
-    public void setLocation(final Location newLoc) {
-        // set logical location
-        if (loc.equals(newLoc)) {
-            return;
-        }
-        loc.set(newLoc);
-        elevation = World.getMap().getElevationAt(loc);
-        updatePosition(-elevation);
-        EventBus.publish(new CharMoveEvent(getCharId(), loc));
-    }
-
-    public void setManapoints(final int manapoints) {
-        this.manapoints = manapoints;
-    }
-
-    /**
-     * Set the name of the current character. Pre and suffixes are generated by this function as well
-     *
-     * @param newName the name of the character or null
-     */
-    @SuppressWarnings("nls")
-    public void setName(final String newName) {
-        name = newName;
-
-        if ((avatar != null) && (charId != null)) {
-            avatar.setName(name);
-        }
-    }
-
-    /**
-     * Set the color of the name of the character.
-     *
-     * @param color the new color value
-     */
-    public void setNameColor(final Color color) {
-        nameColor = color;
-
-        if (avatar != null) {
-            avatar.setNameColor(color);
-        }
-    }
-
-    /**
-     * Set the new position of the character.
-     *
-     * @param x X-Coordinate of the character
-     * @param y Y-Coordinate of the character
-     * @param z Z-Coordinate of the character
+     * @param ok not in use
      */
     @Override
-    public void setPosition(final int x, final int y, final int z) {
-        dX = x;
-        dY = y;
-        dZ = z;
-
-        updatePosition(0);
+    public void animationFinished(final boolean ok) {
+        dX = 0;
+        dY = 0;
+        dZ = 0;
+        updatePosition(elevation);
     }
 
     /**
-     * Set the scale of the character.
-     *
-     * @param newScale new scale value between 0.5f and 1.2f
+     * Stop the execution of the current avatar animation.
      */
-    @SuppressWarnings("nls")
-    public void setScale(final float newScale) {
-        if ((newScale < MINIMAL_SCALE) || (newScale > MAXIMAL_SCALE)) {
-            LOGGER.warn("invalid character scale " + newScale + " ignored for " + charId);
-            return;
-        }
-
-        scale = newScale;
+    public void stopAnimation() {
         if (avatar != null) {
-            avatar.setScale(newScale);
+            avatar.stopAnimation();
         }
+        move.stop();
     }
 
     /**
-     * Set the color of the skin of the avatar.
-     *
-     * @param color the color that is used to color the skin
+     * Set the current animation back to its parent, update the avatar and invoke the needed animations.
      */
-    public void setSkinColor(final Color color) {
-        if (color == null) {
-            skinColor = null;
-        } else {
-            skinColor = new Color(color);
-        }
-        if (avatar != null) {
-            avatar.changeBaseColor(color);
-        }
-    }
-
-    /**
-     * Set the visibility bonus of this character.
-     *
-     * @param newVisibilityBonus the new visibility bonus value
-     */
-    public void setVisibilityBonus(final int newVisibilityBonus) {
-        visibilityBonus = newVisibilityBonus;
-    }
-
-    /**
-     * Set the visibility of a character.
-     *
-     * @param visibility the new visibility of the character
-     */
-    public void setVisible(final int visibility) {
-        final boolean newVisible = visibility > 0;
-        // react only to change
-        if ((lastVisibility != visibility) || (newVisible != visible)) {
-            lastVisibility = visibility;
-            visible = newVisible;
-
-            // becoming visible
-            if (visible) {
-                updateAvatar();
-                updateLight(LIGHT_SET);
-                if (avatar != null) {
-                    avatar.setAlphaTarget(VISIBILITY_ALPHA_MOD * visibility);
-                }
-            } else if (avatar != null) {
-                avatar.setAlphaTarget(0);
-            }
-
-            EventBus.publish(new CharVisibilityEvent(getCharId(), visibility));
-        }
-    }
-
-    /**
-     * Add a item the avatar wears to its current list. The changes do not become visible until
-     * {@link #updatePaperdoll(Avatar)} is called.
-     *
-     * @param slot the slot the item is carried at
-     * @param id   the ID of the item the character wears
-     */
-    @SuppressWarnings("nls")
-    public void setWearingItem(final int slot, final int id) {
-        if ((slot < 0) || (slot >= AvatarClothManager.GROUP_COUNT)) {
-            LOGGER.warn("Wearing item set to invalid slot: " + slot);
-            return;
-        }
-
-        wearItems[slot] = id;
-    }
-
-    private void applyLightValue(final int itemId) {
-        final int light = ItemFactory.getInstance().getPrototype(itemId).getItemLight();
-
-        if (light > lightValue) {
-            lightValue = light;
-        }
-    }
-
-    /**
-     * Set and start a new animation for this character. The animation is shown and after its done the animation
-     * handler
-     * returns to the normal state.
-     *
-     * @param newAnimation the ID of the new animation
-     * @param speed        the animation speed, the larger the value the slower the animation
-     */
-    public void startAnimation(final int newAnimation, final int speed) {
-        if (avatar == null) {
-            return; // avatar not ready, discard animation
-        }
-        if (!avatar.getAnimationAvaiable(newAnimation)) {
-            return;
-        }
-        animation = newAnimation;
+    public void resetAnimation() {
+        animation = CharAnimations.STAND;
         updateAvatar();
-        avatar.animate(speed, false);
+        if (avatar != null) {
+            avatar.animate(DEFAULT_ANIMATION_SPEED, true);
+        }
     }
 
     /**
@@ -938,6 +406,12 @@ public final class Char
      */
     @SuppressWarnings("nls")
     private synchronized void updateAvatar() {
+        if (removedCharacter) {
+            releaseAvatar();
+            LOGGER.warn("Trying to update the avatar of a removed avatar.");
+            return;
+        }
+
         // nothing to do for invisible folks
         if (!visible || (appearance == 0)) {
             return;
@@ -953,15 +427,18 @@ public final class Char
         }
 
         int oldAlpha = 0;
+        int oldAlphaTarget = 255;
 
         if (avatar != null) {
             oldAlpha = avatar.getAlpha();
+            oldAlphaTarget = avatar.getTargetAlpha();
         }
 
-        final Avatar newAvatar = Avatar.create(newAvatarId, this);
+        @Nullable final Avatar newAvatar = Avatar.create(newAvatarId, this);
 
         if (newAvatar == null) {
-            throw new NullPointerException("Avatar for ID " + Integer.toString(newAvatarId) + " is NULL.");
+            LOGGER.error("Failed to change the avatar as the new ID " + newAvatarId + " is NULL.");
+            return;
         }
 
         updatePaperdoll(newAvatar);
@@ -990,126 +467,24 @@ public final class Char
 
         newAvatar.setScale(scale);
         newAvatar.setAlpha(oldAlpha);
-        newAvatar.setAttackMarkerVisible(CombatHandler.getInstance().isAttacking(this));
+        newAvatar.setAlphaTarget(oldAlphaTarget);
+        newAvatar.setAttackMarkerVisible(World.getPlayer().getCombatHandler().isAttacking(this));
+        if (name != null) {
+            newAvatar.setName(name);
+        }
+
+        if (nameColor != null) {
+            newAvatar.setNameColor(nameColor);
+        }
 
         newAvatar.show();
-        if (avatar != null) {
-            avatar.recycle();
-        }
 
+        final Avatar oldAvatar = avatar;
         avatarId = newAvatarId;
         avatar = newAvatar;
-
-        setName(name);
-        setNameColor(nameColor);
-    }
-
-    /**
-     * Update the current light source of this character.
-     */
-    public void updateLight() {
-        if (lightValue > 0) {
-            final int tempLightValue = lightValue;
-            resetLight();
-            lightSrc = LightSource.createLight(loc, tempLightValue);
-            World.getLights().add(lightSrc);
-            lightValue = tempLightValue;
+        if (oldAvatar != null) {
+            oldAvatar.markAsRemoved();
         }
-    }
-
-    /**
-     * Update the light source of the character.
-     *
-     * @param avatar the avatar that is updated
-     * @param mode   the mode of the update
-     */
-    private void updateLight(final Avatar avatar, final int mode) {
-        final Location lightLoc;
-        // different handling for own char
-        final Player player = World.getPlayer();
-        if ((player != null) && (player.getPlayerId() == charId)) {
-            lightLoc = player.getLocation();
-        } else {
-            lightLoc = loc;
-        }
-
-        final MapTile tile = World.getMap().getMapAt(lightLoc);
-
-        if ((avatar != null) && (tile != null)) {
-            switch (mode) {
-                case LIGHT_SET:
-                    avatar.setLight(tile.getLight());
-                    break;
-                case LIGHT_SOFT:
-                    avatar.setLightTarget(tile.getLight());
-                    break;
-                case LIGHT_UPDATE:
-                    if (avatar.hasAnimatedLight()) {
-                        avatar.setLightTarget(tile.getLight());
-                    } else {
-                        avatar.setLight(tile.getLight());
-                    }
-                    break;
-                default:
-                    LOGGER.warn("Wrong light update mode."); //$NON-NLS-1$
-                    break;
-            }
-        }
-    }
-
-    /**
-     * Update the light source of the character.
-     *
-     * @param mode the mode of the update
-     */
-    void updateLight(final int mode) {
-        updateLight(avatar, mode);
-    }
-
-    /**
-     * Change the position of the light source of the character and refresh the light.
-     *
-     * @param newLoc the new location of the light source
-     */
-    public void updateLight(final Location newLoc) {
-        if (lightSrc != null) {
-            lightSrc.getLocation().set(newLoc);
-            World.getLights().refreshLight(lightSrc);
-        }
-    }
-
-    public void setInventoryItem(final int slot, final ItemId itemId) {
-        switch (slot) {
-            case 1:
-                setWearingItem(AvatarClothManager.GROUP_HAT, itemId.getValue());
-                break;
-            case 3:
-                setWearingItem(AvatarClothManager.GROUP_CHEST, itemId.getValue());
-                break;
-            case 5:
-                setWearingItem(AvatarClothManager.GROUP_FIRST_HAND, itemId.getValue());
-                break;
-            case 6:
-                setWearingItem(AvatarClothManager.GROUP_SECOND_HAND, itemId.getValue());
-                break;
-            case 9:
-                setWearingItem(AvatarClothManager.GROUP_TROUSERS, itemId.getValue());
-                break;
-            case 10:
-                setWearingItem(AvatarClothManager.GROUP_SHOES, itemId.getValue());
-                break;
-            case 11:
-                setWearingItem(AvatarClothManager.GROUP_COAT, itemId.getValue());
-                break;
-        }
-    }
-
-    /**
-     * Update the paper doll, so set all items the characters wears to the avatar. Do this in case many cloth parts
-     * changed or in case the avatar instance changed.
-     */
-    public void updatePaperdoll() {
-        updatePaperdoll(avatar);
     }
 
     /**
@@ -1118,7 +493,11 @@ public final class Char
      *
      * @param avatar the avatar that is supposed to be updated
      */
-    private void updatePaperdoll(final Avatar avatar) {
+    private void updatePaperdoll(@Nullable final Avatar avatar) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to update the paperdoll of a removed character.");
+            return;
+        }
         if (avatar == null) {
             return;
         }
@@ -1144,7 +523,34 @@ public final class Char
         }
     }
 
-    private static void applyPaperdollingItem(final Avatar avatar, final int slot, final int itemId) {
+    /**
+     * Check if a cloth item is defined in a specified group.
+     *
+     * @param avatar the avatar to update
+     * @param slot   the slot where the item shall be checked
+     * @param id     the id of the item that shall be checked
+     * @return <code>true</code> in case a item is defined and displayable
+     */
+    @SuppressWarnings("nls")
+    public boolean hasWearingItem(@Nullable final Avatar avatar, final int slot, final int id) {
+        if ((slot < 0) || (slot >= AvatarClothManager.GROUP_COUNT)) {
+            LOGGER.warn("Wearing item check on invalid slot: " + slot);
+            return false;
+        }
+
+        return (id != 0) && ((avatar == null) || avatar.getTemplate().getClothes().doesClothExists(slot, id));
+
+    }
+
+    private void applyLightValue(final int itemId) {
+        final int light = ItemFactory.getInstance().getTemplate(itemId).getItemInfo().getLight();
+
+        if (light > lightValue) {
+            lightValue = light;
+        }
+    }
+
+    private static void applyPaperdollingItem(@Nullable final Avatar avatar, final int slot, final int itemId) {
         if (avatar != null) {
             if (itemId == 0) {
                 avatar.removeClothItem(slot);
@@ -1160,10 +566,444 @@ public final class Char
      * @param avatar the avatar that is altered
      * @param fix    additional position offset for the character, used for the elevation.
      */
-    private void updatePosition(final Avatar avatar, final int fix) {
-        if (avatar != null) {
-            avatar.setScreenPos(loc.getDcX() + dX, (loc.getDcY() + dY) - fix, loc.getDcZ() + dZ, Layers.CHARS);
+    private void updatePosition(@Nullable final Avatar avatar, final int fix) {
+        if (removedCharacter) {
+            return;
         }
+        if (avatar != null) {
+            avatar.setScreenPos(charLocation.getDcX() + dX, (charLocation.getDcY() + dY) - fix, charLocation.getDcZ() + dZ, Layers.CHARS);
+        }
+    }
+
+    /**
+     * Update the light source of the character.
+     *
+     * @param avatar the avatar that is updated
+     * @param mode   the mode of the update
+     */
+    private void updateLight(@Nullable final Avatar avatar, final int mode) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to update the light of a removed character.");
+            return;
+        }
+
+        final Location lightLoc;
+        // different handling for own char
+        @Nonnull final Player player = World.getPlayer();
+        if (player.isPlayer(charId)) {
+            lightLoc = player.getLocation();
+        } else {
+            lightLoc = charLocation;
+        }
+
+        @Nullable final MapTile tile = World.getMap().getMapAt(lightLoc);
+
+        if ((avatar != null) && (tile != null)) {
+            switch (mode) {
+                case LIGHT_SET:
+                    avatar.setLight(tile.getLight());
+                    break;
+                case LIGHT_SOFT:
+                    avatar.setLightTarget(tile.getLight());
+                    break;
+                case LIGHT_UPDATE:
+                    if (avatar.hasAnimatedLight()) {
+                        avatar.setLightTarget(tile.getLight());
+                    } else {
+                        avatar.setLight(tile.getLight());
+                    }
+                    break;
+                default:
+                    LOGGER.warn("Wrong light update mode."); //$NON-NLS-1$
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Once this value is turned {@code true} the character is removed from the game.
+     */
+    private boolean removedCharacter;
+
+    /**
+     * Mark this character as removed. Calling this function will cause the instance to clean its dependency and then
+     * die gracefully.
+     */
+    public void markAsRemoved() {
+        removedCharacter = true;
+
+        move.stop();
+        resetLight();
+        releaseAvatar();
+
+        AnnotationProcessor.unprocess(this);
+    }
+
+    /**
+     * Remove the current light source of the character.
+     */
+    public void resetLight() {
+        if (lightSrc != null) {
+            World.getLights().remove(lightSrc);
+            LightSource.releaseLight(lightSrc);
+            lightSrc = null;
+            lightValue = 0;
+        }
+    }
+
+    /**
+     * Release the current avatar and free the resources.
+     */
+    private void releaseAvatar() {
+        final Avatar localAvatar = avatar;
+        avatar = null;
+        avatarId = -1;
+        if (localAvatar != null) {
+            localAvatar.markAsRemoved();
+        }
+    }
+
+    /**
+     * Set the new position of the character.
+     *
+     * @param x X-Coordinate of the character
+     * @param y Y-Coordinate of the character
+     * @param z Z-Coordinate of the character
+     */
+    @Override
+    public void setPosition(final int x, final int y, final int z) {
+        dX = x;
+        dY = y;
+        dZ = z;
+
+        updatePosition(0);
+    }
+
+    /**
+     * Change the ID of the character.
+     *
+     * @param newCharId new ID of the character
+     */
+    @SuppressWarnings({"nls", "IfStatementWithTooManyBranches"})
+    public void setCharId(@Nonnull final CharacterId newCharId) {
+        charId = newCharId;
+        if (charId.isHuman()) {
+            setNameColor(NAME_COLOR_HUMAN);
+        } else if (charId.isNPC()) {
+            setNameColor(NAME_COLOR_NPC);
+        } else if (charId.isMonster()) {
+            setNameColor(NAME_COLOR_MONSTER);
+        } else {
+            LOGGER.warn("Failed to detect character type for " + charId.toString());
+        }
+    }
+
+    /**
+     * Set the color of the name of the character.
+     *
+     * @param color the new color value
+     */
+    private void setNameColor(@Nonnull final Color color) {
+        nameColor = color;
+
+        if (avatar != null) {
+            avatar.setNameColor(color);
+        }
+    }
+
+    /**
+     * Set the name of the current character. Pre and suffixes are generated by this function as well
+     *
+     * @param newName the name of the character or null
+     */
+    @SuppressWarnings("nls")
+    public void setName(@Nonnull final String newName) {
+        name = newName;
+
+        if (avatar != null) {
+            avatar.setName(name);
+        }
+    }
+
+    /**
+     * Set the scale of the character.
+     *
+     * @param newScale new scale value between 0.5f and 1.2f
+     */
+    @SuppressWarnings("nls")
+    public void setScale(final float newScale) {
+        if ((newScale < MINIMAL_SCALE) || (newScale > MAXIMAL_SCALE)) {
+            LOGGER.warn("invalid character scale " + newScale + " ignored for " + charId);
+        }
+
+        scale = FastMath.clamp(newScale, MINIMAL_SCALE, MAXIMAL_SCALE);
+        if (avatar != null) {
+            avatar.setScale(newScale);
+        }
+    }
+
+    /**
+     * Get the current avatar of the character.
+     *
+     * @return the avatar of the character
+     */
+    @Nullable
+    public Avatar getAvatar() {
+        return avatar;
+    }
+
+    /**
+     * Get the current direction the character is looking at.
+     *
+     * @return the direction value
+     */
+    public int getDirection() {
+        return direction;
+    }
+
+    /**
+     * Get a interactive reference to this character.
+     *
+     * @return a interactive reference to this character
+     */
+    @Nullable
+    public InteractiveChar getInteractive() {
+        return new InteractiveChar(this);
+    }
+
+    /**
+     * Get the current location of the character.
+     *
+     * @return the location of the character
+     */
+    @Nonnull
+    public Location getLocation() {
+        return charLocation;
+    }
+
+    /**
+     * Get the name of the character.
+     *
+     * @return the name of the character
+     */
+    @Nonnull
+    public String getName() {
+        if (name == null) {
+            return Lang.getMsg("chat.someone"); //$NON-NLS-1$
+        }
+        return name;
+    }
+
+    /**
+     * Get the visibility bonus value.
+     *
+     * @return visibility bonus value
+     */
+    public int getVisibilityBonus() {
+        return visibilityBonus;
+    }
+
+    /**
+     * Check if the character is a human controlled character.
+     *
+     * @return {@code true} if the character is a human controlled character
+     */
+    public boolean isHuman() {
+        return (charId != null) && charId.isHuman();
+    }
+
+    /**
+     * Check if the character is a monster.
+     *
+     * @return true if the character is a monster, false if not.
+     */
+    public boolean isMonster() {
+        return (charId != null) && charId.isMonster();
+    }
+
+    /**
+     * Check if the character is a npc.
+     *
+     * @return true if the character is a npc, false if not.
+     */
+    public boolean isNPC() {
+        return (charId != null) && charId.isNPC();
+    }
+
+    /**
+     * Check if the character is visible or not.
+     *
+     * @return true if the character is visible, false if not
+     */
+    public boolean isVisible() {
+        return visible;
+    }
+
+    /**
+     * Move the character to a new position with animation. This function takes absolute coordinates.
+     *
+     * @param newPos the target location of the move
+     * @param mode   the mode of the move
+     * @param speed  moving speed
+     */
+    public void moveTo(@Nonnull final Location newPos, @Nonnull final CharMovementMode mode, final int speed) {
+        final CharacterId characterId = getCharId();
+        if (characterId == null) {
+            LOGGER.error("Can't move a character without ID around.");
+            return;
+        }
+        // get old position
+        final Location tempLoc = new Location();
+        tempLoc.set(charLocation);
+        charLocation.set(newPos);
+
+        if (tempLoc.equals(charLocation)) {
+            return;
+        }
+
+        updateLight(charLocation);
+
+        // determine general visibility by players
+        setVisible(World.getPlayer().canSee(this));
+        if (!visible || (avatar == null)) {
+            return;
+        }
+
+        // calculate movement direction
+        final int dir = tempLoc.getDirection(charLocation);
+
+        // turn only when animating, not when pushed
+        if ((mode != CharMovementMode.Push) && (dir != Location.DIR_ZERO)) {
+            setDirection(dir);
+        }
+
+        // find target elevation
+        final int fromElevation = elevation;
+        elevation = World.getMap().getElevationAt(charLocation);
+
+        int range = 1;
+        if (mode == CharMovementMode.Run) {
+            range = 2;
+        }
+
+        // start animations only if reasonable distance
+        if ((charLocation.getDistance(tempLoc) <= range) && (speed > 0) && (dir != Location.DIR_ZERO) && (mode != CharMovementMode.Push)) {
+            if (mode == CharMovementMode.Walk) {
+                startAnimation(CharAnimations.WALK, speed);
+            } else if (mode == CharMovementMode.Run) {
+                startAnimation(CharAnimations.RUN, speed);
+            }
+            move.start(tempLoc.getDcX() - charLocation.getDcX(), tempLoc.getDcY() - fromElevation - charLocation.getDcY(), 0, 0,
+                    -elevation, 0, speed);
+        } else {
+            // reset last animation result
+            dX = 0;
+            dY = 0;
+            dZ = 0;
+            updatePosition(elevation);
+        }
+        updateLight(LIGHT_SOFT);
+
+        EventBus.publish(new CharMoveEvent(characterId, charLocation));
+    }
+
+    /**
+     * Change the position of the light source of the character and refresh the light.
+     *
+     * @param newLoc the new location of the light source
+     */
+    public void updateLight(@Nonnull final Location newLoc) {
+        if (lightSrc != null) {
+            lightSrc.getLocation().set(newLoc);
+            World.getLights().refreshLight(lightSrc);
+        }
+    }
+
+    /**
+     * Set the visibility of a character.
+     *
+     * @param visibility the new visibility of the character
+     */
+    public void setVisible(final int visibility) {
+        final CharacterId characterId = getCharId();
+        if (characterId == null) {
+            LOGGER.error("Can't set visibility of a character without ID.");
+            return;
+        }
+
+        final boolean newVisible = visibility > 0;
+        // react only to change
+        if ((lastVisibility != visibility) || (newVisible != visible)) {
+            lastVisibility = visibility;
+            visible = newVisible;
+
+            // becoming visible
+            if (visible) {
+                updateAvatar();
+                updateLight(LIGHT_SET);
+                if (avatar != null) {
+                    avatar.setAlphaTarget(VISIBILITY_ALPHA_MOD * visibility);
+                }
+            } else if (avatar != null) {
+                avatar.setAlphaTarget(0);
+            }
+
+            EventBus.publish(new CharVisibilityEvent(characterId, visibility));
+        }
+    }
+
+    /**
+     * Change the direction the character is looking at.
+     *
+     * @param newDirection the new direction value
+     */
+    public void setDirection(final int newDirection) {
+        direction = newDirection;
+        if (!move.isRunning()) {
+            updateAvatar();
+        }
+    }
+
+    /**
+     * Set and start a new animation for this character. The animation is shown and after its done the animation
+     * handler
+     * returns to the normal state.
+     *
+     * @param newAnimation the ID of the new animation
+     * @param speed        the animation speed, the larger the value the slower the animation
+     */
+    public void startAnimation(final int newAnimation, final int speed) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to start a animation of a removed character.");
+            return;
+        }
+        if (avatar == null) {
+            return; // avatar not ready, discard animation
+        }
+        if (!avatar.getTemplate().getAvatarInfo().isAnimationAvailable(newAnimation)) {
+            final MapTile tile = World.getMap().getMapAt(getLocation());
+            if (tile == null) {
+                return;
+            }
+
+            //noinspection SwitchStatementWithoutDefaultBranch
+            switch (newAnimation) {
+                case CharAnimations.ATTACK_1HAND:
+                case CharAnimations.ATTACK_2HAND:
+                    tile.showEffect(21);
+                    break;
+                case CharAnimations.ATTACK_BOW:
+                    tile.showEffect(15);
+                    break;
+                case CharAnimations.ATTACK_BLOCK:
+                    tile.showEffect(18);
+                    break;
+            }
+            return;
+        }
+        animation = newAnimation;
+        updateAvatar();
+        avatar.animate(speed, false);
     }
 
     /**
@@ -1173,5 +1013,225 @@ public final class Char
      */
     void updatePosition(final int fix) {
         updatePosition(avatar, fix);
+    }
+
+    /**
+     * Update the light source of the character.
+     *
+     * @param mode the mode of the update
+     */
+    void updateLight(final int mode) {
+        updateLight(avatar, mode);
+    }
+
+    /**
+     * Put the light source of the character into the list of light sources that are rendered.
+     */
+    public void relistLight() {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to enlist the light of a removed character again.");
+            return;
+        }
+        if (lightSrc != null) {
+            World.getLights().remove(lightSrc);
+            LightSource.releaseLight(lightSrc);
+            lightSrc = LightSource.createLight(charLocation, lightValue);
+            World.getLights().add(lightSrc);
+        }
+    }
+
+    /**
+     * Change the appearance of the character.
+     *
+     * @param newAppearance the new appearance value
+     */
+    public void setAppearance(final int newAppearance) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to update the appearance of a removed character.");
+            return;
+        }
+        appearance = newAppearance;
+        resetAnimation();
+    }
+
+    /**
+     * Set or remove the marker from the character that selects the character as active combat target.
+     *
+     * @param activate <code>true</code> to enable the combat target marker on this character
+     */
+    public void setAttackMarker(final boolean activate) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to access the attack marker of a removed character.");
+            return;
+        }
+        if (avatar == null) {
+            return;
+        }
+
+        avatar.setAttackMarkerVisible(activate);
+    }
+
+    /**
+     * Update the color of a specified cloth part.
+     *
+     * @param slot  the slot that shall be changed
+     * @param color the color this part shall be displayed in
+     */
+    public void setClothColor(final int slot, final Color color) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to change the cloth color of a removed character.");
+            return;
+        }
+        wearItemsColors[slot] = new Color(color);
+        if (avatar != null) {
+            avatar.changeClothColor(slot, color);
+        }
+    }
+
+    /**
+     * Set a item this character has in its inventory.
+     *
+     * @param slot   the slot of the inventory
+     * @param itemId the item id of the item at this slot
+     */
+    public void setInventoryItem(final int slot, @Nonnull final ItemId itemId) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to update the inventory of a removed character.");
+            return;
+        }
+        switch (slot) {
+            case 1:
+                setWearingItem(AvatarClothManager.GROUP_HAT, itemId.getValue());
+                break;
+            case 3:
+                setWearingItem(AvatarClothManager.GROUP_CHEST, itemId.getValue());
+                break;
+            case 5:
+                setWearingItem(AvatarClothManager.GROUP_FIRST_HAND, itemId.getValue());
+                break;
+            case 6:
+                setWearingItem(AvatarClothManager.GROUP_SECOND_HAND, itemId.getValue());
+                break;
+            case 9:
+                setWearingItem(AvatarClothManager.GROUP_TROUSERS, itemId.getValue());
+                break;
+            case 10:
+                setWearingItem(AvatarClothManager.GROUP_SHOES, itemId.getValue());
+                break;
+            case 11:
+                setWearingItem(AvatarClothManager.GROUP_COAT, itemId.getValue());
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Add a item the avatar wears to its current list. The changes do not become visible until
+     * {@link #updatePaperdoll(Avatar)} is called.
+     *
+     * @param slot the slot the item is carried at
+     * @param id   the ID of the item the character wears
+     */
+    @SuppressWarnings("nls")
+    public void setWearingItem(final int slot, final int id) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to update the worn items of a removed character.");
+            return;
+        }
+
+        if ((slot < 0) || (slot >= AvatarClothManager.GROUP_COUNT)) {
+            LOGGER.warn("Wearing item set to invalid slot: " + slot);
+            return;
+        }
+
+        wearItems[slot] = id;
+    }
+
+    /**
+     * Set the new location of the character.
+     *
+     * @param newLoc new location of the character
+     */
+    public void setLocation(@Nonnull final Location newLoc) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to update the location of a removed character.");
+            return;
+        }
+        final CharacterId characterId = getCharId();
+        if (characterId == null) {
+            LOGGER.error("Trying to change the location of a character without a ID.");
+            return;
+        }
+        // set logical location
+        if (charLocation.equals(newLoc)) {
+            return;
+        }
+        charLocation.set(newLoc);
+        elevation = World.getMap().getElevationAt(charLocation);
+        updatePosition(-elevation);
+        EventBus.publish(new CharMoveEvent(characterId, charLocation));
+    }
+
+    /**
+     * Set the color of the skin of the avatar.
+     *
+     * @param color the color that is used to color the skin
+     */
+    public void setSkinColor(@Nullable final Color color) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to set the skin color of a removed character.");
+            return;
+        }
+        if (color == null) {
+            skinColor = null;
+        } else {
+            skinColor = new Color(color);
+        }
+        if (avatar != null) {
+            avatar.changeBaseColor(color);
+        }
+    }
+
+    /**
+     * Set the visibility bonus of this character.
+     *
+     * @param newVisibilityBonus the new visibility bonus value
+     */
+    public void setVisibilityBonus(final int newVisibilityBonus) {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to set the visibility bonus of a removed character.");
+            return;
+        }
+        visibilityBonus = newVisibilityBonus;
+    }
+
+    /**
+     * Update the current light source of this character.
+     */
+    public void updateLight() {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to update the light of a removed character.");
+            return;
+        }
+        if (lightValue > 0) {
+            final int tempLightValue = lightValue;
+            resetLight();
+            lightSrc = LightSource.createLight(charLocation, tempLightValue);
+            World.getLights().add(lightSrc);
+            lightValue = tempLightValue;
+        }
+    }
+
+    /**
+     * Update the paper doll, so set all items the characters wears to the avatar. Do this in case many cloth parts
+     * changed or in case the avatar instance changed.
+     */
+    public void updatePaperdoll() {
+        if (removedCharacter) {
+            LOGGER.warn("Trying to update the paperdoll of a removed character.");
+            return;
+        }
+        updatePaperdoll(avatar);
     }
 }

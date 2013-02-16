@@ -18,9 +18,9 @@
  */
 package illarion.client.resources;
 
-import illarion.client.graphics.Item;
-import illarion.common.types.ItemId;
-import illarion.common.util.RecycleFactory;
+import illarion.client.resources.data.ItemTemplate;
+
+import javax.annotation.Nonnull;
 
 /**
  * The Item factory loads creates and stores all instances of the item class
@@ -29,18 +29,23 @@ import illarion.common.util.RecycleFactory;
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  * @author Nop
  */
-public final class ItemFactory extends RecycleFactory<Item> implements
-        ResourceFactory<Item> {
+public final class ItemFactory extends AbstractTemplateFactory<ItemTemplate> {
     /**
      * The singleton instance of this class.
      */
     private static final ItemFactory INSTANCE = new ItemFactory();
 
     /**
+     * The ID of the item that is supposed to be displayed by default.
+     */
+    public static final int DEFAULT_ITEM_ID = 0;
+
+    /**
      * Get the singleton instance of this factory.
      *
      * @return the singleton instance of this factory
      */
+    @Nonnull
     public static ItemFactory getInstance() {
         return INSTANCE;
     }
@@ -49,38 +54,6 @@ public final class ItemFactory extends RecycleFactory<Item> implements
      * Construct the item factory.
      */
     private ItemFactory() {
+        super(DEFAULT_ITEM_ID);
     }
-
-    /**
-     * The initialization function.
-     */
-    @Override
-    @SuppressWarnings("nls")
-    public void init() {
-        // nothing to do
-    }
-
-    /**
-     * Prepare the factory after loading for normal operation.
-     */
-    @Override
-    public void loadingFinished() {
-        mapDefault(0, 1);
-
-        finish();
-    }
-
-    /**
-     * Store the resource in the factory.
-     */
-    @Override
-    public void storeResource(final Item resource) {
-        register(resource);
-    }
-
-    public Item getPrototype(final ItemId id) {
-        return getPrototype(id.getValue());
-    }
-
-
 }

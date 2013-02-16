@@ -28,6 +28,8 @@ import org.newdawn.slick.UnicodeFont;
 import org.newdawn.slick.font.effects.ColorEffect;
 import org.newdawn.slick.util.ResourceLoader;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.awt.*;
 import java.util.EnumMap;
 import java.util.Map;
@@ -41,31 +43,35 @@ public final class FontLoader implements SlickRenderFontLoader {
     /**
      * The enumerator of available fonts.
      */
+    @SuppressWarnings("EnumeratedClassNamingConvention")
     public enum Fonts {
         /**
          * Menu font - a large font with fancy characters.
          */
-        menu("menuFont", "BlackChancery", 24.f, "normal"),
+        @SuppressWarnings("EnumeratedConstantNamingConvention")
+        Menu("menuFont", "BlackChancery", 24.f, "normal"),
 
         /**
          * Small font - a small font that is easily readable.
          */
-        small("smallFont", "Ubuntu", 14.f, "normal"),
+        Small("smallFont", "Ubuntu", 14.f, "bold"),
 
         /**
          * Text font - the default font for text, larger then the small font but also easily readable.
          */
-        text("textFont", "Ubuntu", 16.f, "normal"),
+        @SuppressWarnings("EnumeratedConstantNamingConvention")
+        Text("textFont", "Ubuntu", 16.f, "normal"),
 
         /**
-         * The font that is used for the chat log.
+         * The font that is used for the Chat log.
          */
-        chat("chatFont", "LiberationSansNarrow-Bold", 16.f, "normal"),
+        @SuppressWarnings("EnumeratedConstantNamingConvention")
+        Chat("chatFont", "LiberationSansNarrow-Bold", 16.f, "normal"),
 
         /**
          * Console font - mono-spaced font suiting console output.
          */
-        console("consoleFont", "Inconsolata", 14.f, "normal");
+        Console("consoleFont", "Inconsolata", 14.f, "normal");
 
         /**
          * The internal name of the font.
@@ -125,6 +131,7 @@ public final class FontLoader implements SlickRenderFontLoader {
          *
          * @return the name of the TTF-font file
          */
+        @Nonnull
         public String getFontTTFName() {
             return getFontName() + ".ttf";
         }
@@ -162,6 +169,7 @@ public final class FontLoader implements SlickRenderFontLoader {
     /**
      * The logger instance that takes care for the logging output of this class.
      */
+    @SuppressWarnings("UnusedDeclaration")
     private static final Logger LOGGER = Logger.getLogger(FontLoader.class);
 
     /**
@@ -169,6 +177,7 @@ public final class FontLoader implements SlickRenderFontLoader {
      *
      * @return the instance of the singleton
      */
+    @Nonnull
     public static FontLoader getInstance() {
         return INSTANCE;
     }
@@ -176,6 +185,7 @@ public final class FontLoader implements SlickRenderFontLoader {
     /**
      * Storage of the loaded GL Fonts.
      */
+    @Nonnull
     private final Map<FontLoader.Fonts, SlickRenderFont> fonts;
 
     /**
@@ -209,14 +219,17 @@ public final class FontLoader implements SlickRenderFontLoader {
      * @return the font itself
      * @throws SlickLoadFontException in case loading the font fails
      */
-    public SlickRenderFont getFont(FontLoader.Fonts font) throws SlickLoadFontException {
+    public SlickRenderFont getFont(@Nullable final FontLoader.Fonts font) throws SlickLoadFontException {
+        @Nonnull final Fonts usedFont;
         if (font == null) {
-            font = FontLoader.Fonts.text;
+            usedFont = FontLoader.Fonts.Text;
+        } else {
+            usedFont = font;
         }
-        SlickRenderFont renderableFont = fonts.get(font);
+        SlickRenderFont renderableFont = fonts.get(usedFont);
         if (renderableFont == null) {
-            renderableFont = loadFont(font);
-            fonts.put(font, renderableFont);
+            renderableFont = loadFont(usedFont);
+            fonts.put(usedFont, renderableFont);
         }
 
         return renderableFont;
@@ -238,10 +251,11 @@ public final class FontLoader implements SlickRenderFontLoader {
      * @param font the requested font
      * @return the loaded font
      */
+    @Nullable
     public SlickRenderFont getFontSave(final FontLoader.Fonts font) {
         try {
             return getFont(font);
-        } catch (final SlickLoadFontException e) {
+        } catch (@Nonnull final SlickLoadFontException e) {
             return null;
         }
     }
@@ -253,12 +267,14 @@ public final class FontLoader implements SlickRenderFontLoader {
      * @return the fitting enumerator entry or <code>null</code> in case no
      *         fitting entry was found
      */
+    @Nullable
     private static FontLoader.Fonts toFontEnum(final String name) {
-        for (FontLoader.Fonts font : FontLoader.Fonts.values()) {
+        for (final FontLoader.Fonts font : FontLoader.Fonts.values()) {
             if (font.getName().equals(name)) {
                 return font;
             }
         }
+        LOGGER.warn("Font name \"" + name + "\" could not be matched to a actual font.");
         return null;
     }
 
@@ -269,8 +285,9 @@ public final class FontLoader implements SlickRenderFontLoader {
      * @return the font itself
      * @throws SlickLoadFontException in case loading the font fails
      */
+    @Nonnull
     @SuppressWarnings("nls")
-    private SlickRenderFont loadFont(final FontLoader.Fonts font)
+    private static SlickRenderFont loadFont(@Nonnull final FontLoader.Fonts font)
             throws SlickLoadFontException {
         try {
             Font javaFont =
@@ -279,22 +296,22 @@ public final class FontLoader implements SlickRenderFontLoader {
                             ResourceLoader.getResourceAsStream(FONT_ROOT
                                     + font.getFontTTFName()));
 
-            if (font.getFontStyle().equals("normal")) {
+            if ("normal".equals(font.getFontStyle())) {
                 javaFont = javaFont.deriveFont(Font.PLAIN, font.getFontSize());
-            } else if (font.getFontStyle().equals("italic")) {
+            } else if ("italic".equals(font.getFontStyle())) {
                 javaFont =
                         javaFont.deriveFont(Font.ITALIC, font.getFontSize());
-            } else if (font.getFontStyle().equals("bold")) {
+            } else if ("bold".equals(font.getFontStyle())) {
                 javaFont = javaFont.deriveFont(Font.BOLD, font.getFontSize());
             }
 
             final UnicodeFont uniFont = new UnicodeFont(javaFont);
             uniFont.addAsciiGlyphs();
             uniFont.addGlyphs("•");
+            //noinspection unchecked
             uniFont.getEffects().add(new ColorEffect());
             return new UnicodeSlickRenderFont(uniFont, javaFont);
         } catch (Exception e) {
-            e.printStackTrace();
             throw new SlickLoadFontException(e);
         }
     }

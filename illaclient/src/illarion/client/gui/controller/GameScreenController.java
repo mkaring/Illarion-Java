@@ -21,39 +21,66 @@ package illarion.client.gui.controller;
 import de.lessvoid.nifty.Nifty;
 import de.lessvoid.nifty.screen.Screen;
 import de.lessvoid.nifty.screen.ScreenController;
+import illarion.client.gui.*;
 import illarion.client.gui.controller.game.*;
 import org.newdawn.slick.GameContainer;
+import org.newdawn.slick.Input;
 
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
 
-public final class GameScreenController implements ScreenController {
-
+public final class GameScreenController implements GameGui, ScreenController {
+    @Nonnull
     private final Collection<ScreenController> childControllers;
+    @Nonnull
     private final Collection<UpdatableHandler> childUpdateControllers;
 
-    public GameScreenController() {
+    private final BookHandler bookHandler;
+    private final DialogHandler dialogHandler;
+    private final SkillsHandler skillsHandler;
+    private final InformHandler informHandler;
+    private final GUIChatHandler chatHandler;
+    private final GUIInventoryHandler inventoryHandler;
+    private final ContainerHandler containerHandler;
+    private final GameMapHandler gameMapHandler;
+    private final QuestHandler questHandler;
+
+    private boolean ready;
+
+    public GameScreenController(final Input input) {
         final NumberSelectPopupHandler numberPopupHandler = new NumberSelectPopupHandler();
         final TooltipHandler tooltipHandler = new TooltipHandler();
 
         childControllers = new ArrayList<ScreenController>();
         childUpdateControllers = new ArrayList<UpdatableHandler>();
 
+        chatHandler = new GUIChatHandler();
+        bookHandler = new BookHandler();
+        dialogHandler = new DialogHandler(numberPopupHandler, tooltipHandler);
+        skillsHandler = new SkillsHandler();
+        informHandler = new InformHandler();
+        inventoryHandler = new GUIInventoryHandler(input, numberPopupHandler, tooltipHandler);
+        containerHandler = new ContainerHandler(input, numberPopupHandler, tooltipHandler);
+        gameMapHandler = new GameMapHandler(input, numberPopupHandler, tooltipHandler);
+        questHandler = new QuestHandler();
+
         addHandler(numberPopupHandler);
         addHandler(tooltipHandler);
-        addHandler(new GUIChatHandler());
-        addHandler(new BookHandler());
-        addHandler(new GUIInventoryHandler(numberPopupHandler, tooltipHandler));
-        addHandler(new DialogHandler(numberPopupHandler, tooltipHandler));
-        addHandler(new ContainerHandler(numberPopupHandler, tooltipHandler));
+        addHandler(chatHandler);
+        addHandler(bookHandler);
+        addHandler(inventoryHandler);
+        addHandler(dialogHandler);
+        addHandler(containerHandler);
         addHandler(new CloseGameHandler());
         addHandler(new CharStatusHandler());
-        addHandler(new SkillsHandler());
+        addHandler(skillsHandler);
+        addHandler(questHandler);
 
-        addHandler(new GameMapHandler(numberPopupHandler, tooltipHandler));
+        addHandler(gameMapHandler);
         addHandler(new GameMiniMapHandler());
 
-        addHandler(new InformHandler());
+        addHandler(informHandler);
     }
 
     private void addHandler(final ScreenController handler) {
@@ -63,20 +90,92 @@ public final class GameScreenController implements ScreenController {
         }
     }
 
-    private Screen screen;
-
-    @SuppressWarnings("unchecked")
+    @Nonnull
     @Override
-    public void bind(final Nifty nifty, final Screen screen) {
-        this.screen = screen;
+    public BookGui getBookGui() {
+        return bookHandler;
+    }
+
+    @Nonnull
+    @Override
+    public ChatGui getChatGui() {
+        return chatHandler;
+    }
+
+    @Nonnull
+    @Override
+    public ContainerGui getContainerGui() {
+        return containerHandler;
+    }
+
+    @Nonnull
+    @Override
+    public DialogCraftingGui getDialogCraftingGui() {
+        return dialogHandler;
+    }
+
+    @Nonnull
+    @Override
+    public DialogInputGui getDialogInputGui() {
+        return dialogHandler;
+    }
+
+    @Nonnull
+    @Override
+    public DialogMessageGui getDialogMessageGui() {
+        return dialogHandler;
+    }
+
+    @Nonnull
+    @Override
+    public GameMapGui getGameMapGui() {
+        return gameMapHandler;
+    }
+
+    @Nonnull
+    @Override
+    public InformGui getInformGui() {
+        return informHandler;
+    }
+
+    @Nonnull
+    @Override
+    public InventoryGui getInventoryGui() {
+        return inventoryHandler;
+    }
+
+    @Nonnull
+    @Override
+    public QuestGui getQuestGui() {
+        return questHandler;
+    }
+
+    @Nonnull
+    @Override
+    public ScreenController getScreenController() {
+        return this;
+    }
+
+    @Nonnull
+    @Override
+    public SkillGui getSkillGui() {
+        return skillsHandler;
+    }
+
+    @Override
+    public boolean isReady() {
+        return ready;
+    }
+
+    @Override
+    public void onEndScreen() {
         for (final ScreenController childController : childControllers) {
-            childController.bind(nifty, screen);
+            childController.onEndScreen();
         }
     }
 
     @Override
     public void onStartScreen() {
-        screen.getFocusHandler().setKeyFocus(null);
         for (final ScreenController childController : childControllers) {
             childController.onStartScreen();
         }
@@ -89,16 +188,19 @@ public final class GameScreenController implements ScreenController {
      * @param container the container that displays the game
      * @param delta     the time since the last update call
      */
+    @Override
     public void onUpdateGame(final GameContainer container, final int delta) {
         for (final UpdatableHandler childController : childUpdateControllers) {
             childController.update(container, delta);
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public void onEndScreen() {
+    public void bind(final Nifty nifty, final Screen screen) {
         for (final ScreenController childController : childControllers) {
-            childController.onEndScreen();
+            childController.bind(nifty, screen);
         }
+        ready = true;
     }
 }

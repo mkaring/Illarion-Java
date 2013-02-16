@@ -19,15 +19,17 @@
 package illarion.client.world.interactive;
 
 import illarion.client.graphics.Item;
-import illarion.client.net.CommandFactory;
-import illarion.client.net.CommandList;
 import illarion.client.net.client.*;
 import illarion.client.world.MapTile;
 import illarion.client.world.World;
-import illarion.common.net.NetCommWriter;
+import illarion.client.world.items.ContainerSlot;
 import illarion.common.types.ItemCount;
 import illarion.common.types.ItemId;
 import illarion.common.types.Location;
+import org.apache.log4j.Logger;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * This is the interactive representation of a tile on the map.
@@ -35,7 +37,7 @@ import illarion.common.types.Location;
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  * @author Vilarion &lt;vilarion@illarion.org&gt;
  */
-public class InteractiveMapTile extends AbstractDraggable implements DropTarget, UseTarget {
+public class InteractiveMapTile implements Draggable, DropTarget {
     /**
      * The ID that is needed to tell the server that the operations refer to a
      * tile on the map.
@@ -52,7 +54,7 @@ public class InteractiveMapTile extends AbstractDraggable implements DropTarget,
      *
      * @param tile the instance that shall be copied
      */
-    public InteractiveMapTile(final InteractiveMapTile tile) {
+    public InteractiveMapTile(@Nonnull final InteractiveMapTile tile) {
         parentTile = tile.parentTile;
     }
 
@@ -77,35 +79,43 @@ public class InteractiveMapTile extends AbstractDraggable implements DropTarget,
     }
 
     /**
+     * The logging instance that takes care for the logging output of this class.
+     */
+    private static final Logger LOGGER = Logger.getLogger(InteractiveMapTile.class);
+
+    /**
      * Drag something from a map tile to
      */
     @Override
-    public void dragTo(final InteractiveChar targetChar, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveChar targetChar, @Nonnull final ItemCount count) {
         if (!canDrag()) {
+            LOGGER.error("Finished dragging of tile that can't be dragged.");
             return;
         }
 
-        final InteractiveMapTile tile = World.getMap().getInteractive().getInteractiveTileOnMapLoc(
-                targetChar.getLocation());
-        dragTo(tile, count);
+        final MapTile tile = World.getMap().getMapAt(targetChar.getLocation());
+        if (tile == null) {
+            LOGGER.error("Dragged to a tile that does not exist.");
+            return;
+        }
+        dragTo(tile.getInteractive(), count);
     }
 
     @Override
-    public void dragTo(final InteractiveInventorySlot targetSlot, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveInventorySlot targetSlot, @Nonnull final ItemCount count) {
         if (!canDrag()) {
+            LOGGER.error("Finished dragging of tile that can't be dragged.");
             return;
         }
 
-        if (!targetSlot.acceptItem(getTopItemId())) {
+        final ItemId topItemId = getTopItemId();
+        assert topItemId != null;
+
+        if (!targetSlot.isAcceptingItem(topItemId)) {
             return;
         }
 
-        final DragMapInvCmd cmd = CommandFactory.getInstance().getCommand(
-                CommandList.CMD_DRAG_MAP_INV, DragMapInvCmd.class);
-        cmd.setDragFrom(getLocation());
-        cmd.setDragTo(targetSlot.getSlotId());
-        cmd.setCount(count);
-        cmd.send();
+        World.getNet().sendCommand(new DragMapInvCmd(getLocation(), targetSlot.getSlotId(), count));
     }
 
     /**
@@ -114,84 +124,53 @@ public class InteractiveMapTile extends AbstractDraggable implements DropTarget,
      * @param targetTile the tile to drag this tile to
      */
     @Override
-    public void dragTo(final InteractiveMapTile targetTile, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveMapTile targetTile, @Nonnull final ItemCount count) {
         if (!canDrag()) {
             return;
         }
 
-        final DragMapMapCmd cmd = CommandFactory.getInstance().getCommand(
-                CommandList.CMD_DRAG_MAP_MAP_N + getDirection(),
-                DragMapMapCmd.class);
-        cmd.setDragTo(targetTile.getLocation());
-        cmd.setCount(count);
-        cmd.send();
+        World.getNet().sendCommand(new DragMapMapCmd(getLocation(), targetTile.getLocation(), count));
     }
 
     @Override
-    public void dragTo(final InteractiveContainerSlot targetSlot, final ItemCount count) {
+    public void dragTo(@Nonnull final InteractiveContainerSlot targetSlot, @Nonnull final ItemCount count) {
         if (!canDrag()) {
             return;
         }
 
-        if (!targetSlot.acceptItem(getTopItemId())) {
+        final ItemId topItemId = getTopItemId();
+        assert topItemId != null;
+
+        if (!targetSlot.acceptItem(topItemId)) {
             return;
         }
 
-        final DragMapScCmd cmd = CommandFactory.getInstance().getCommand(CommandList.CMD_DRAG_MAP_SC,
-                DragMapScCmd.class);
-        cmd.setSource(getLocation());
-        cmd.setTarget(targetSlot.getSlot().getContainerId(), targetSlot.getSlot().getLocation());
-        cmd.setCount(count);
-        cmd.send();
-
+        final ContainerSlot slot = targetSlot.getSlot();
+        World.getNet().sendCommand(new DragMapScCmd(getLocation(), slot.getContainerId(), slot.getLocation(), count));
     }
 
+    /**
+     * Perform a use operation on this tile.
+     */
     public void use() {
         if (!isInUseRange()) {
             return;
         }
 
-        final Item topItem = getTopImage();
-        if ((topItem != null) && topItem.isContainer()) {
-            final OpenMapCmd containerCmd = CommandFactory.getInstance().getCommand(CommandList.CMD_OPEN_MAP, OpenMapCmd.class);
-            containerCmd.setPosition(getLocation());
-            containerCmd.send();
+        final Item topItem = getTopItem();
+        if ((topItem != null) && topItem.getTemplate().getItemInfo().isContainer()) {
+            World.getNet().sendCommand(new OpenOnMapCmd(getLocation()));
             return;
         }
 
-        final UseCmd cmd = CommandFactory.getInstance().getCommand(CommandList.CMD_USE, UseCmd.class);
-        cmd.addUse(this);
-        cmd.send();
+        World.getNet().sendCommand(new UseMapCmd(getLocation()));
     }
 
+    /**
+     * Request a look at on this tile.
+     */
     public void lookAt() {
-        final LookatTileCmd cmd =
-                CommandFactory.getInstance().getCommand(
-                        CommandList.CMD_LOOKAT_TILE,
-                        LookatTileCmd.class);
-        cmd.setPosition(getLocation());
-        cmd.send();
-    }
-
-    /**
-     * Encode a use operation to this tile.
-     *
-     * @param writer the use operation to this tile
-     */
-    @Override
-    public void encodeUse(final NetCommWriter writer) {
-        writer.writeByte(REFERENCE_ID);
-        writer.writeLocation(getLocation());
-    }
-
-    /**
-     * Get the direction constant for the relative direction from the player
-     * location to the target tile.
-     *
-     * @return the direction constant
-     */
-    public int getDirection() {
-        return World.getPlayer().getLocation().getDirection(getLocation());
+        World.getNet().sendCommand(new LookatTileCmd(getLocation()));
     }
 
     /**
@@ -199,16 +178,15 @@ public class InteractiveMapTile extends AbstractDraggable implements DropTarget,
      *
      * @return the location of this tile
      */
+    @Nonnull
     public Location getLocation() {
         return parentTile.getLocation();
     }
 
     /**
-     * Check if the tile is inside the valid using range of the player
-     * character.
+     * Check if the tile is inside the valid using range of the player character.
      *
-     * @return <code>true</code> in case the character is allowed to use
-     *         anything on this tile or the tile itself
+     * @return {@code true} in case the character is allowed to use anything on this tile or the tile itself
      */
     public boolean isInUseRange() {
         return World.getPlayer().getLocation().getDistance(getLocation()) < 2;
@@ -219,7 +197,8 @@ public class InteractiveMapTile extends AbstractDraggable implements DropTarget,
      *
      * @return the item on top of the tile
      */
-    public Item getTopImage() {
+    @Nullable
+    public Item getTopItem() {
         return parentTile.getTopItem();
     }
 
@@ -228,7 +207,12 @@ public class InteractiveMapTile extends AbstractDraggable implements DropTarget,
      *
      * @return the item ID
      */
+    @Nullable
     public ItemId getTopItemId() {
-        return getTopImage().getItemId();
+        final Item topItem = getTopItem();
+        if (topItem == null) {
+            return null;
+        }
+        return topItem.getItemId();
     }
 }

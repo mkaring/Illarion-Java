@@ -26,6 +26,8 @@ import illarion.common.net.NetCommWriter;
 import illarion.common.types.Location;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -39,6 +41,8 @@ import java.util.concurrent.BlockingQueue;
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  * @author Nop
  */
+@NotThreadSafe
+@SuppressWarnings("ClassNamingConvention")
 final class Sender extends Thread implements NetCommWriter {
     /**
      * The XOR mask the command ID is masked with to decode the checking ID and
@@ -99,8 +103,8 @@ final class Sender extends Thread implements NetCommWriter {
      *                    data to the server
      */
     @SuppressWarnings("nls")
-    protected Sender(final BlockingQueue<AbstractCommand> outputQueue,
-                     final WritableByteChannel out) {
+    Sender(final BlockingQueue<AbstractCommand> outputQueue,
+           final WritableByteChannel out) {
         super("Illarion output thread");
 
         queue = outputQueue;
@@ -129,7 +133,7 @@ final class Sender extends Thread implements NetCommWriter {
                 final AbstractCommand cmd;
                 try {
                     cmd = queue.take();
-                } catch (final InterruptedException e) {
+                } catch (@Nonnull final InterruptedException e) {
                     LOGGER.info("Thread \"" + getName() + "\" got interrupted.");
                     continue;
                 }
@@ -146,7 +150,6 @@ final class Sender extends Thread implements NetCommWriter {
                 final int startOfCmd = buffer.position();
                 // encode command into net protocol
                 cmd.encode(this);
-                cmd.recycle();
 
                 final int length = buffer.position() - startOfCmd;
                 buffer.flip();
@@ -164,7 +167,7 @@ final class Sender extends Thread implements NetCommWriter {
 
                 outChannel.write(buffer);
             }
-        } catch (final Exception e) {
+        } catch (@Nonnull final Exception e) {
             LOGGER.fatal("General error within the sender", e);
             IllaClient.fallbackToLogin(Lang.getMsg("error.sender"));
         }
@@ -205,7 +208,7 @@ final class Sender extends Thread implements NetCommWriter {
      * @param loc the location that shall be send to the server
      */
     @Override
-    public void writeLocation(final Location loc) {
+    public void writeLocation(@Nonnull final Location loc) {
         buffer.putShort((short) loc.getScX());
         buffer.putShort((short) loc.getScY());
         buffer.putShort((short) loc.getScZ());
@@ -228,7 +231,7 @@ final class Sender extends Thread implements NetCommWriter {
      * @param value the string that shall be send to the server
      */
     @Override
-    public void writeString(final String value) {
+    public void writeString(@Nonnull final String value) {
         final int startIndex = buffer.position();
         buffer.putShort((short) 0);
 

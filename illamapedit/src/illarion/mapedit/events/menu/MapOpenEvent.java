@@ -18,15 +18,18 @@
  */
 package illarion.mapedit.events.menu;
 
+import javax.annotation.Nullable;
+
 /**
  * @author Tim
  */
 public class MapOpenEvent {
 
+    @Nullable
     private final String path;
     private String name;
 
-    public MapOpenEvent(final String path, final String name) {
+    public MapOpenEvent(@Nullable final String path, final String name) {
 
         this.path = path;
         this.name = name;
@@ -37,6 +40,7 @@ public class MapOpenEvent {
         this.path = null;
     }
 
+    @Nullable
     public String getPath() {
         return path;
     }

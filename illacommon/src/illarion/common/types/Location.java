@@ -23,6 +23,9 @@ import illarion.common.graphics.MapConstants;
 import illarion.common.util.FastMath;
 import javolution.text.TextBuilder;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Serializable;
 
 /**
@@ -31,9 +34,8 @@ import java.io.Serializable;
  * @author Nop
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class Location
-        implements Serializable {
-
+@NotThreadSafe
+public class Location implements Serializable {
     /**
      * Constant for a move in eastern direction.
      */
@@ -139,17 +141,17 @@ public class Location
     /**
      * True if the display coordinates need to be calculated.
      */
-    private boolean dirtyDC = false;
+    private boolean dirtyDC;
 
     /**
      * True if the map coordinates need to be calculated.
      */
-    private boolean dirtyMC = false;
+    private boolean dirtyMC;
 
     /**
      * True if the server coordinates need to be calculated.
      */
-    private boolean dirtySC = false;
+    private boolean dirtySC;
 
     /**
      * Distance between the tiles. Needed for display coordinate calculation.
@@ -211,9 +213,22 @@ public class Location
      *
      * @param org the original Location instance
      */
-    public Location(final Location org) {
+    public Location(@Nonnull final Location org) {
         this();
         set(org);
+    }
+
+    /**
+     * Copy constructor. This constructor creates a copy of the location instance set here and moves the new instance
+     * to a specified direction.
+     *
+     * @param org       the original Location instance
+     * @param direction the direction to move the location to
+     */
+    public Location(@Nonnull final Location org, final int direction) {
+        this();
+        set(org);
+        moveSC(direction);
     }
 
     /**
@@ -284,6 +299,7 @@ public class Location
      * @return the unused location instance
      */
     @Deprecated
+    @Nonnull
     public static Location getInstance() {
         return new Location();
     }
@@ -368,7 +384,7 @@ public class Location
      * @return true in case the server coordinates of this location and the second location are the same.
      */
     @Override
-    public boolean equals(final Object obj) {
+    public boolean equals(@Nullable final Object obj) {
         if (obj == null) {
             return false;
         }
@@ -490,7 +506,7 @@ public class Location
      * @param loc The target location
      * @return the direction needed to get from the current location to the target location
      */
-    public int getDirection(final Location loc) {
+    public int getDirection(@Nonnull final Location loc) {
         if (loc.dirtySC) {
             loc.toServerCoordinates();
         }
@@ -504,7 +520,7 @@ public class Location
      * @return the amount of steps needed to get from the current position to the target position in case there are not
      *         blocked tiles on the way
      */
-    public int getDistance(final Location loc) {
+    public int getDistance(@Nonnull final Location loc) {
         if (dirtySC) {
             toServerCoordinates();
         }
@@ -585,7 +601,7 @@ public class Location
      * @return the square root distance between the two locations. So the length of a straight line between this
      *         location and the target location.
      */
-    public float getSqrtDistance(final Location loc) {
+    public float getSqrtDistance(@Nonnull final Location loc) {
         if (dirtySC) {
             toServerCoordinates();
         }
@@ -626,7 +642,7 @@ public class Location
      * @param loc the second location
      * @return true in case this location and the second one are touching each other
      */
-    public boolean isNeighbour(final Location loc) {
+    public boolean isNeighbour(@Nonnull final Location loc) {
         if (dirtySC) {
             toServerCoordinates();
         }
@@ -642,27 +658,6 @@ public class Location
      * @param dir The direction the Server coordinates are moved by
      */
     public void moveSC(final int dir) {
-        if (dir == DIR_ZERO) {
-            return;
-        }
-        if (dirtySC) {
-            toServerCoordinates();
-        }
-
-        scX += MOVE8[0][dir];
-        scY += MOVE8[1][dir];
-
-        dirtySC = false;
-        dirtyMC = true;
-        dirtyDC = true;
-    }
-
-    /**
-     * Move location one step into a direction using the 8 direction system.
-     *
-     * @param dir The direction the Server coordinates are moved by
-     */
-    public void moveSC8(final int dir) {
         if (dir == DIR_ZERO) {
             return;
         }
@@ -694,7 +689,7 @@ public class Location
      *
      * @param loc The source location that is copied to this location
      */
-    public void set(final Location loc) {
+    public void set(@Nonnull final Location loc) {
         scX = loc.scX;
         scY = loc.scY;
         scZ = loc.scZ;
@@ -811,6 +806,7 @@ public class Location
      *
      * @return the string of the server coordinates
      */
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {

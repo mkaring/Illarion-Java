@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="MantisConnect">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/illacommon/lib/mantisconnect" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/illacommon/lib/mantisconnect" />
+    </SOURCES>
+    <jarDirectory url="file://$PROJECT_DIR$/illacommon/lib/mantisconnect" recursive="false" />
+    <jarDirectory url="file://$PROJECT_DIR$/illacommon/lib/mantisconnect" recursive="false" type="SOURCES" />
+  </library>
+</component>

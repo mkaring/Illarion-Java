@@ -18,8 +18,12 @@
  */
 package illarion.client.world;
 
+import illarion.client.net.client.MapDimensionCmd;
 import illarion.common.graphics.MapConstants;
 import illarion.common.util.FastMath;
+
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * This class is used to store and calculate the dimensions of the map. It requires the size of the screen as
@@ -27,6 +31,7 @@ import illarion.common.util.FastMath;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@NotThreadSafe
 public final class MapDimensions {
     /**
      * This is the amount of rows and columns that are requested from the server in addition to the tiles needed to
@@ -49,34 +54,88 @@ public final class MapDimensions {
     /**
      * The singleton instance of this class.
      */
+    @Nonnull
     private static final MapDimensions INSTANCE = new MapDimensions();
 
     /**
-     * Get the singleton instance of this class.
-     *
-     * @return the singleton instance of this class.
+     * The amount of rows from the center to the bottom that are within the visible range. Tiles further away are
+     * removed.
      */
-    public static MapDimensions getInstance() {
-        return INSTANCE;
-    }
-
     private int clippingOffsetBottom;
 
+    /**
+     * The amount of rows from the center to the left that are within the visible range. Tiles further away are
+     * removed.
+     */
     private int clippingOffsetLeft;
+
+    /**
+     * The amount of rows from the center to the right that are within the visible range. Tiles further away are
+     * removed.
+     */
     private int clippingOffsetRight;
+
+    /**
+     * The amount of rows from the center to the top that are within the visible range. Tiles further away are
+     * removed.
+     */
     private int clippingOffsetTop;
+
+    /**
+     * The height of the area that is within the clipping range. Measured in pixels.
+     */
     private int offScreenHeight;
+
+    /**
+     * The width of the area that is within the clipping range. Measured in pixels.
+     */
     private int offScreenWidth;
+
+    /**
+     * The height of the last reported screen size.
+     */
     private int onScreenHeight;
+
+    /**
+     * The width of the last reported screen size.
+     */
     private int onScreenWidth;
+
+    /**
+     * The amount of tile rows kept on the screen.
+     */
     private int stripesHeight;
+
+    /**
+     * The amount of tile columns kept on the screen.
+     */
     private int stripesWidth;
+
+    /**
+     * The last width that was reported as map width to the server.
+     */
+    private int serverMapDimensionWidth;
+
+    /**
+     * The last height that was reported as map height to the server.
+     */
+    private int serverMapDimensionHeight;
 
     /**
      * The private constructor to ensure that no further instances are created.
      */
     private MapDimensions() {
         // nothing
+    }
+
+    /**
+     * Get the singleton instance of this class.
+     *
+     * @return the singleton instance of this class.
+     */
+    @Nonnull
+    public static MapDimensions getInstance() {
+        return INSTANCE;
     }
 
     /**
@@ -203,5 +262,16 @@ public final class MapDimensions {
 
         offScreenWidth = (stripesWidth * MapConstants.TILE_W) / 2;
         offScreenHeight = (stripesHeight * MapConstants.TILE_H) / 2;
+
+        final int serverMapDimWidth = stripesWidth >> 2;
+        final int serverMapDimHeight = stripesHeight >> 2;
+
+        if ((serverMapDimHeight != serverMapDimensionHeight) ||
+                (serverMapDimWidth != serverMapDimensionWidth)) {
+            serverMapDimensionHeight = serverMapDimHeight;
+            serverMapDimensionWidth = serverMapDimWidth;
+            World.getNet().sendCommand(new MapDimensionCmd(serverMapDimWidth, serverMapDimHeight));
+        }
+        World.getMapDisplay().reportChangedDisplaySize();
     }
 }

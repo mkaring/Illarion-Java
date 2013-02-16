@@ -21,10 +21,13 @@ package illarion.mapedit.tools;
 import illarion.mapedit.Lang;
 import illarion.mapedit.data.Map;
 import illarion.mapedit.data.MapTile;
+import illarion.mapedit.history.GroupAction;
 import illarion.mapedit.history.MusicIDChangedAction;
 import illarion.mapedit.tools.panel.MusicPanel;
 import org.pushingpixels.flamingo.api.common.icon.ResizableIcon;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.swing.*;
 
 /**
@@ -36,6 +39,7 @@ import javax.swing.*;
  */
 public class MusicTool extends AbstractTool {
 
+    @Nonnull
     private final MusicPanel panel;
 
 
@@ -44,14 +48,23 @@ public class MusicTool extends AbstractTool {
     }
 
     @Override
-    public void clickedAt(final int x, final int y, final Map map) {
+    public void clickedAt(final int x, final int y, @Nonnull final Map map) {
         final int musicID = panel.getMusicID();
-        System.out.println(x + "  " + y);
-        if (map.getTileAt(x, y).getMusicID() == musicID) {
-            return;
+        final int radius = panel.getRadius();
+        final GroupAction action = new GroupAction();
+        for (int i = (x - radius) + 1; i <= ((x + radius) - 1); i++) {
+            for (int j = (y - radius) + 1; j <= ((y + radius) - 1); j++) {
+                final MapTile tile = map.getTileAt(i, j);
+                if ((tile != null) && (tile.getMusicID() != musicID)) {
+                    action.addAction(new MusicIDChangedAction(i, j, tile.getMusicID(), musicID, map));
+                    map.setTileAt(i, j, MapTile.MapTileFactory.setMusicId(musicID, tile));
+
+                }
+            }
         }
-        getHistory().addEntry(new MusicIDChangedAction(x, y, map.getTileAt(x, y).getMusicID(), musicID, map));
-        map.setTileAt(x, y, MapTile.MapTileFactory.setMusicId(musicID, map.getTileAt(x, y)));
+        if (!action.isEmpty()) {
+            getHistory().addEntry(action);
+        }
     }
 
     @Override
@@ -59,11 +72,13 @@ public class MusicTool extends AbstractTool {
         return Lang.getMsg("tools.MusicTool");
     }
 
+    @Nullable
     @Override
     public ResizableIcon getToolIcon() {
         return null;
     }
 
+    @Nonnull
     @Override
     public JPanel getSettingsPanel() {
         return panel;

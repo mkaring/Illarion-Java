@@ -33,6 +33,8 @@ import org.apache.log4j.Logger;
 import org.bushe.swing.event.EventBus;
 import org.newdawn.slick.Color;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
@@ -54,26 +56,6 @@ public final class AppearanceMsg extends AbstractReply {
     private static final float SCALE_MOD = 100.f;
 
     /**
-     * Attack mode constant for character wearing a distance weapon.
-     */
-    private static final int STATE_DISTANCE = 2;
-
-    /**
-     * Attack mode constant for character wearing a magical wand.
-     */
-    private static final int STATE_MAGIC = 3;
-
-    /**
-     * Attack mode constant for character wearing a melee weapon.
-     */
-    private static final int STATE_MELEE = 1;
-
-    /**
-     * Attack mode constant for character wearing no weapon.
-     */
-    private static final int STATE_PEACEFUL = 0;
-
-    /**
      * The sprite color instance that is used to send the color values to the
      * other parts of the client.
      */
@@ -89,13 +71,6 @@ public final class AppearanceMsg extends AbstractReply {
      * The name of the character.
      */
     private String name;
-
-    /**
-     * The current attack state of the character. Possible values are
-     * {@link #STATE_PEACEFUL}, {@link #STATE_MELEE}, {@link #STATE_DISTANCE},
-     * and {@link #STATE_MAGIC}.
-     */
-    private short attackMode;
 
     /**
      * The ID of the beard of the character.
@@ -160,6 +135,7 @@ public final class AppearanceMsg extends AbstractReply {
     /**
      * The slots of the inventory that is required to display the paperdolling of this character.
      */
+    @Nonnull
     private final ItemId[] itemSlots;
 
     /**
@@ -179,7 +155,7 @@ public final class AppearanceMsg extends AbstractReply {
      *                     decode the full message
      */
     @Override
-    public void decode(final NetCommReader reader) throws IOException {
+    public void decode(@Nonnull final NetCommReader reader) throws IOException {
         charId = new CharacterId(reader);
         name = reader.readString();
 
@@ -201,7 +177,6 @@ public final class AppearanceMsg extends AbstractReply {
             itemSlots[i] = new ItemId(reader);
         }
 
-        attackMode = reader.readUByte();
         deadFlag = reader.readUByte() == 1;
     }
 
@@ -214,42 +189,24 @@ public final class AppearanceMsg extends AbstractReply {
     @SuppressWarnings("nls")
     @Override
     public boolean executeUpdate() {
-        final Char ch = World.getPeople().getCharacter(charId);
+        @Nullable final Char character = World.getPeople().getCharacter(charId);
 
         // Character not found.
-        if (ch == null) {
+        if (character == null) {
             return true;
         }
 
-        // set name color from attack mode
-        switch (attackMode) {
-            case STATE_PEACEFUL:
-                ch.setNameColor(Color.yellow);
-                break;
-            case STATE_MELEE:
-                ch.setNameColor(Color.red);
-                break;
-            case STATE_DISTANCE:
-                ch.setNameColor(Color.green);
-                break;
-            case STATE_MAGIC:
-                ch.setNameColor(Color.blue);
-                break;
-            default:
-                LOGGER.warn("invalid attack mode received " + attackMode);
-        }
-
-        ch.setScale(size / SCALE_MOD);
-        ch.setName(name);
-        ch.setAppearance(appearance);
-        ch.resetLight();
-        ch.setWearingItem(AvatarClothManager.GROUP_HAIR, hairID);
-        ch.setWearingItem(AvatarClothManager.GROUP_BEARD, beardID);
+        character.setScale(size / SCALE_MOD);
+        character.setName(name);
+        character.setAppearance(appearance);
+        character.resetLight();
+        character.setWearingItem(AvatarClothManager.GROUP_HAIR, hairID);
+        character.setWearingItem(AvatarClothManager.GROUP_BEARD, beardID);
 
         for (int i = 0; i < itemSlots.length; i++) {
-            ch.setInventoryItem(i, itemSlots[i]);
+            character.setInventoryItem(i, itemSlots[i]);
         }
-        ch.updatePaperdoll();
+        character.updatePaperdoll();
 
         TEMP_COLOR.r = skinColorRed / 255.f;
         TEMP_COLOR.g = skinColorGreen / 255.f;
@@ -257,20 +214,20 @@ public final class AppearanceMsg extends AbstractReply {
         TEMP_COLOR.a = 1.f;
 
         if ((skinColorRed != 255) || (skinColorGreen != 255) || (skinColorBlue != 255)) {
-            ch.setSkinColor(TEMP_COLOR);
+            character.setSkinColor(TEMP_COLOR);
         } else {
-            ch.setSkinColor(null);
+            character.setSkinColor(null);
         }
 
         TEMP_COLOR.r = hairColorRed / 255.f;
         TEMP_COLOR.g = hairColorGreen / 255.f;
         TEMP_COLOR.b = hairColorBlue / 255.f;
-        ch.setClothColor(AvatarClothManager.GROUP_HAIR, TEMP_COLOR);
-        ch.setClothColor(AvatarClothManager.GROUP_BEARD, TEMP_COLOR);
-        ch.setAlive(!deadFlag);
-        ch.updateLight();
+        character.setClothColor(AvatarClothManager.GROUP_HAIR, TEMP_COLOR);
+        character.setClothColor(AvatarClothManager.GROUP_BEARD, TEMP_COLOR);
+        character.setAlive(!deadFlag);
+        character.updateLight();
 
-        ch.setVisible(World.getPlayer().canSee(ch));
+        character.setVisible(World.getPlayer().canSee(character));
 
         EventBus.publish(new AttributeUpdateReceivedEvent(charId, CharacterAttribute.HitPoints, hitPoints));
         return true;
@@ -495,6 +452,7 @@ public final class AppearanceMsg extends AbstractReply {
      * @return the string that contains the values that were decoded for this
      *         message
      */
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {
@@ -504,8 +462,6 @@ public final class AppearanceMsg extends AbstractReply {
         builder.append(appearance);
         builder.append(" size=");
         builder.append(size);
-        builder.append(" weapon=");
-        builder.append(attackMode);
         return toString(builder.toString());
     }
 }

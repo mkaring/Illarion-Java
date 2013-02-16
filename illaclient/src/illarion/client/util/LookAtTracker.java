@@ -22,6 +22,8 @@ import illarion.client.gui.events.TooltipsRemovedEvent;
 import org.bushe.swing.event.EventBus;
 import org.bushe.swing.event.EventSubscriber;
 
+import javax.annotation.Nullable;
+import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 
 /**
@@ -39,7 +41,8 @@ public final class LookAtTracker implements EventSubscriber<TooltipsRemovedEvent
     /**
      * The reference to the object last looked at.
      */
-    private SoftReference<Object> lookAtObject;
+    @Nullable
+    private Reference<Object> lookAtObject;
 
     /**
      * Private constructor that subscribes the events required.
@@ -65,16 +68,14 @@ public final class LookAtTracker implements EventSubscriber<TooltipsRemovedEvent
      * @return {@code true} in case this object is the same object last set with {@link #setLookAtObject(Object)}
      */
     public static boolean isLookAtObject(final Object testObject) {
-        if (INSTANCE.lookAtObject == null) {
+        final Reference<Object> reference = INSTANCE.lookAtObject;
+        if (reference == null) {
             return false;
         }
 
-        final Object localLookAtObject = INSTANCE.lookAtObject.get();
-        if (localLookAtObject == null) {
-            return false;
-        }
+        final Object localLookAtObject = reference.get();
+        return (localLookAtObject != null) && (localLookAtObject == testObject);
 
-        return localLookAtObject == testObject;
     }
 
     @Override

@@ -18,28 +18,28 @@
  */
 package illarion.client;
 
-import illarion.client.net.CommandFactory;
-import illarion.client.net.CommandList;
 import illarion.client.net.NetComm;
 import illarion.client.net.client.LoginCmd;
-import illarion.client.net.client.MapDimensionCmd;
+import illarion.client.util.GlobalExecutorService;
 import illarion.client.util.Lang;
-import illarion.client.world.MapDimensions;
 import illarion.client.world.World;
+import illarion.common.data.IllarionSSLSocketFactory;
 import illarion.common.util.Base64;
 import org.apache.log4j.Logger;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.DESKeySpec;
+import javax.net.ssl.HttpsURLConnection;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.OutputStreamWriter;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
@@ -87,6 +87,7 @@ public final class Login {
 
     private static final Login INSTANCE = new Login();
 
+    @Nonnull
     public static Login getInstance() {
         return INSTANCE;
     }
@@ -106,9 +107,9 @@ public final class Login {
         IllaClient.getCfg().set("lastLogin", loginName);
         IllaClient.getCfg().set("savePassword", storePasswd);
         if (storePasswd) {
-            storePassword(true, password);
+            storePassword(password);
         } else {
-            storePassword(false, null);
+            deleteStoredPassword();
         }
         IllaClient.getCfg().save();
     }
@@ -144,6 +145,7 @@ public final class Login {
          * @return computed result
          * @throws Exception if unable to compute a result
          */
+        @Nullable
         @Override
         public Void call() throws Exception {
             requestCharacterListInternal(callback);
@@ -152,26 +154,30 @@ public final class Login {
     }
 
     public void requestCharacterList(final Login.RequestCharListCallback resultCallback) {
-        World.getExecutorService().submit(new Login.RequestCharacterListTask(resultCallback));
+        GlobalExecutorService.getService().submit(new Login.RequestCharacterListTask(resultCallback));
     }
 
-    private void requestCharacterListInternal(final Login.RequestCharListCallback resultCallback) {
+    private void requestCharacterListInternal(@Nonnull final Login.RequestCharListCallback resultCallback) {
         final String serverURI = IllaClient.DEFAULT_SERVER.getServerHost();
         try {
-
-            final URL requestURL = new URL("http://" + serverURI + "/community/account/xml_charlist.php");
-
-            final HttpURLConnection conn = (HttpURLConnection) requestURL.openConnection();
-            conn.setDoOutput(true);
-            conn.setDoInput(true);
+            final URL requestURL = new URL("https://" + serverURI + "/account/xml_charlist.php");
 
             final StringBuilder queryBuilder = new StringBuilder();
             queryBuilder.append("name=");
             queryBuilder.append(URLEncoder.encode(getLoginName(), "UTF-8"));
             queryBuilder.append("&passwd=");
             queryBuilder.append(URLEncoder.encode(getPassword(), "UTF-8"));
-
             final String query = queryBuilder.toString();
+
+            final HttpsURLConnection conn = (HttpsURLConnection) requestURL.openConnection();
+            conn.setDoOutput(true);
+            conn.setDoInput(true);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            conn.setRequestProperty("charset", "utf-8");
+            conn.setRequestProperty("Content-Length", "" + Integer.toString(query.getBytes().length));
+            conn.setUseCaches(false);
+            conn.setSSLSocketFactory(IllarionSSLSocketFactory.getFactory());
 
             conn.connect();
 
@@ -186,10 +192,10 @@ public final class Login {
             final Document doc = db.parse(conn.getInputStream());
 
             readXML(doc, resultCallback);
-        } catch (final UnknownHostException e) {
+        } catch (@Nonnull final UnknownHostException e) {
             resultCallback.finishedRequest(2);
             LOGGER.error("Failed to resolve hostname, for fetching the charlist");
-        } catch (final Exception e) {
+        } catch (@Nonnull final Exception e) {
             resultCallback.finishedRequest(2);
             LOGGER.error("Loading the charlist from the server failed");
         }
@@ -207,7 +213,7 @@ public final class Login {
      */
     private static final Logger LOGGER = Logger.getLogger(Login.class);
 
-    private void readXML(final Node root, final Login.RequestCharListCallback resultCallback) {
+    private void readXML(@Nonnull final Node root, @Nonnull final Login.RequestCharListCallback resultCallback) {
         if (!"chars".equals(root.getNodeName()) && !NODE_NAME_ERROR.equals(root.getNodeName())) {
             final NodeList children = root.getChildNodes();
             final int count = children.getLength();
@@ -225,12 +231,10 @@ public final class Login {
         final int count = children.getLength();
 
         final String accLang = root.getAttributes().getNamedItem("lang").getNodeValue();
-        if ("de".equals(accLang) && Lang.getInstance().isEnglish()) {
+        if ("de".equals(accLang)) {
             IllaClient.getCfg().set(Lang.LOCALE_CFG, Lang.LOCALE_CFG_GERMAN);
-            Lang.getInstance().recheckLocale();
-        } else if ("us".equals(accLang) && Lang.getInstance().isGerman()) {
+        } else if ("us".equals(accLang)) {
             IllaClient.getCfg().set(Lang.LOCALE_CFG, Lang.LOCALE_CFG_ENGLISH);
-            Lang.getInstance().recheckLocale();
         }
 
         charList.clear();
@@ -280,17 +284,8 @@ public final class Login {
             return false;
         }
 
-        IllaClient.initChatLog();
-
-        final LoginCmd loginCmd = CommandFactory.getInstance().getCommand(CommandList.CMD_LOGIN, LoginCmd.class);
-        loginCmd.setLogin(loginCharacter, password);
-        loginCmd.setVersion(IllaClient.DEFAULT_SERVER.getClientVersion());
-        loginCmd.send();
-
-        final MapDimensionCmd mapDimCmd = CommandFactory.getInstance().getCommand(CommandList.CMD_MAPDIMENSION, MapDimensionCmd.class);
-        mapDimCmd.setMapDimensions(MapDimensions.getInstance().getStripesWidth() >> 2, MapDimensions.getInstance().getStripesHeight() >> 2);
-        mapDimCmd.send();
-
+        World.getNet().sendCommand(new LoginCmd(loginCharacter, password,
+                IllaClient.DEFAULT_SERVER.getClientVersion()));
         return true;
     }
 
@@ -329,8 +324,9 @@ public final class Login {
      * @param decode false for encoding the password, true for decoding.
      * @return the encoded or the decoded password
      */
+    @Nonnull
     @SuppressWarnings("nls")
-    private String shufflePassword(final String pw, final boolean decode) {
+    private static String shufflePassword(@Nonnull final String pw, final boolean decode) {
 
         try {
             final Charset usedCharset = Charset.forName("UTF-8");
@@ -354,14 +350,14 @@ public final class Login {
             cipher.init(Cipher.ENCRYPT_MODE, key);
             return new String(Base64.encode(cipher.doFinal(cleartext)),
                     usedCharset);
-        } catch (final GeneralSecurityException e) {
+        } catch (@Nonnull final GeneralSecurityException e) {
             if (decode) {
                 LOGGER.warn("Decoding the password failed");
             } else {
                 LOGGER.warn("Encoding the password failed");
             }
             return "";
-        } catch (final IllegalArgumentException e) {
+        } catch (@Nonnull final IllegalArgumentException e) {
             if (decode) {
                 LOGGER.warn("Decoding the password failed");
             } else {
@@ -372,21 +368,21 @@ public final class Login {
     }
 
     /**
-     * Store the password in the configuration file or remove the stored
-     * password from the configuration.
+     * Store the password in the configuration file or remove the stored password from the configuration.
      *
-     * @param store store the password or remove it, true means that the
-     *              password is stored, false that it is removed
-     * @param pw    the password that stall be stored to the configuration file
+     * @param pw the password that stall be stored to the configuration file
      */
     @SuppressWarnings("nls")
-    private void storePassword(final boolean store, final String pw) {
-        if (store) {
-            IllaClient.getCfg().set("savePassword", true);
-            IllaClient.getCfg().set("fingerprint", shufflePassword(pw, false));
-        } else {
-            IllaClient.getCfg().set("savePassword", false);
-            IllaClient.getCfg().remove("fingerprint");
-        }
+    private void storePassword(@Nonnull final String pw) {
+        IllaClient.getCfg().set("savePassword", true);
+        IllaClient.getCfg().set("fingerprint", shufflePassword(pw, false));
+    }
+
+    /**
+     * Remove the stored password.
+     */
+    private void deleteStoredPassword() {
+        IllaClient.getCfg().set("savePassword", false);
+        IllaClient.getCfg().remove("fingerprint");
     }
 }

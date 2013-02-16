@@ -21,6 +21,7 @@ package illarion.client.gui.util;
 import org.illarion.nifty.controls.CraftingCategoryEntry;
 import org.illarion.nifty.controls.CraftingItemEntry;
 
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +40,7 @@ public class NiftyCraftingCategory implements CraftingCategoryEntry {
     /**
      * The items inside this category.
      */
+    @Nonnull
     private final List<CraftingItemEntry> children;
 
     /**
@@ -51,11 +53,13 @@ public class NiftyCraftingCategory implements CraftingCategoryEntry {
         children = new ArrayList<CraftingItemEntry>();
     }
 
+    @Nonnull
     @Override
     public String getCategoryName() {
         return name;
     }
 
+    @Nonnull
     @Override
     public List<CraftingItemEntry> getChildren() {
         return Collections.unmodifiableList(children);
@@ -70,6 +74,7 @@ public class NiftyCraftingCategory implements CraftingCategoryEntry {
         children.add(child);
     }
 
+    @Nonnull
     @Override
     public String getTreeLabel() {
         return name;

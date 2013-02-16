@@ -1,4 +1,8 @@
-#version 120
+#version 110
+
+#ifdef GL_ES
+precision mediump float;
+#endif
 
 // the texture to render
 uniform sampler2D tex0;

@@ -18,35 +18,58 @@
  */
 package illarion.client.graphics;
 
-import org.newdawn.slick.Color;
+import illarion.client.resources.MiscImageFactory;
+import illarion.client.resources.data.MiscImageTemplate;
+import org.apache.log4j.Logger;
+
+import javax.annotation.Nonnull;
 
 /**
  * This class is used to store the markers that are displayed below a avatar.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class AvatarMarker extends AbstractEntity {
-    public AvatarMarker(final AvatarMarker org) {
-        super(org);
-    }
-
-    public AvatarMarker(final int entityId, final Sprite displayedSprite, final int still, final Color baseCol) {
-        super(entityId, displayedSprite, still, 0, baseCol);
-    }
+public class AvatarMarker extends AbstractEntity<MiscImageTemplate> {
+    /**
+     * The logging instance of this class.
+     */
+    private static final Logger LOGGER = Logger.getLogger(AvatarMarker.class);
 
     /**
-     * The clone operation creates a copy of the entity in case it is needed.
+     * The avatar that is the parent of this class.
      */
-    @Override
-    public AbstractEntity clone() {
-        return new AvatarMarker(this);
-    }
+    @Nonnull
+    private final Avatar parent;
 
     /**
-     * Mark this object as unused and store it for later usage.
+     * The default constructor of this avatar marker.
+     *
+     * @param markerId     the image ID of this marker
+     * @param parentAvatar the parent avatar
      */
+    public AvatarMarker(final int markerId, @Nonnull final Avatar parentAvatar) {
+        super(MiscImageFactory.getInstance().getTemplate(markerId));
+        parent = parentAvatar;
+    }
+
     @Override
-    public void recycle() {
-        // nothing
+    protected boolean isShown() {
+        return parent.isShown();
+    }
+
+    @Override
+    public void hide() {
+        // nothing to do
+    }
+
+    @Override
+    public void setAlpha(final int alpha) {
+        super.setAlpha(alpha);
+        setAlphaTarget(alpha);
+    }
+
+    @Override
+    public void show() {
+        LOGGER.warn("Show was called for a avatar marker. This shouldn't happen.");
     }
 }

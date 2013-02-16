@@ -20,11 +20,11 @@ package illarion.client.net.server;
 
 import illarion.client.net.CommandList;
 import illarion.client.net.annotations.ReplyMessage;
-import illarion.client.net.server.events.DialogMessageReceivedEvent;
+import illarion.client.world.World;
 import illarion.common.net.NetCommReader;
 import javolution.text.TextBuilder;
-import org.bushe.swing.event.EventBus;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
@@ -51,7 +51,7 @@ public final class DialogMessageMsg
     private int dialogId;
 
     @Override
-    public void decode(final NetCommReader reader)
+    public void decode(@Nonnull final NetCommReader reader)
             throws IOException {
         title = reader.readString();
         content = reader.readString();
@@ -60,11 +60,12 @@ public final class DialogMessageMsg
 
     @Override
     public boolean executeUpdate() {
-        EventBus.publish(new DialogMessageReceivedEvent(dialogId, title, content));
+        World.getGameGui().getDialogMessageGui().showMessageDialog(dialogId, title, content);
 
         return true;
     }
 
+    @Nonnull
     @Override
     public String toString() {
         final TextBuilder builder = TextBuilder.newInstance();

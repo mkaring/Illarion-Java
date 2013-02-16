@@ -33,6 +33,7 @@ import org.bushe.swing.event.EventTopicSubscriber;
 import org.illarion.nifty.controls.DialogMessage;
 import org.illarion.nifty.controls.DialogMessageConfirmedEvent;
 
+import javax.annotation.Nonnull;
 import java.util.Properties;
 
 /**
@@ -76,7 +77,7 @@ public class DialogMessageControl
 
     @Override
     public void bind(final Nifty nifty, final Screen screen, final Element element, final Properties parameter,
-                     final Attributes controlDefinitionAttributes) {
+                     @Nonnull final Attributes controlDefinitionAttributes) {
         super.bind(nifty, screen, element, parameter, controlDefinitionAttributes);
         niftyInstance = nifty;
         currentScreen = screen;
@@ -109,14 +110,14 @@ public class DialogMessageControl
     }
 
     @Override
-    public void setText(final String text) {
+    public void setText(@Nonnull final String text) {
         final Label label = getContent().findNiftyControl("#text", Label.class);
         label.getElement().getRenderer(TextRenderer.class).setLineWrapping(true);
         label.setText(text);
     }
 
     @Override
-    public void setButton(final String text) {
+    public void setButton(@Nonnull final String text) {
         final Button button = getContent().findNiftyControl("#button", Button.class);
         button.setText(text);
         niftyInstance.subscribe(currentScreen, button.getId(), ButtonClickedEvent.class, this);

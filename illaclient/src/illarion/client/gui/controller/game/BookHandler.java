@@ -25,23 +25,27 @@ import de.lessvoid.nifty.controls.label.builder.LabelBuilder;
 import de.lessvoid.nifty.elements.Element;
 import de.lessvoid.nifty.screen.Screen;
 import de.lessvoid.nifty.screen.ScreenController;
-import illarion.client.net.server.events.ShowBookEvent;
+import de.lessvoid.nifty.tools.SizeValue;
+import illarion.client.IllaClient;
+import illarion.client.gui.BookGui;
 import illarion.client.resources.BookFactory;
 import illarion.client.util.Lang;
 import illarion.common.data.*;
-import org.bushe.swing.event.annotation.AnnotationProcessor;
-import org.bushe.swing.event.annotation.EventSubscriber;
 import org.newdawn.slick.GameContainer;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * This class is used to manage the displaying of the books.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class BookHandler implements ScreenController, UpdatableHandler {
+public final class BookHandler implements BookGui, ScreenController, UpdatableHandler {
 
     private boolean dirty;
     private int showPage;
+    @Nullable
     private BookLanguage showBook;
 
     private Window bookDisplay;
@@ -53,7 +57,7 @@ public final class BookHandler implements ScreenController, UpdatableHandler {
     private Screen screen;
 
     @Override
-    public void bind(final Nifty nifty, final Screen screen) {
+    public void bind(final Nifty nifty, @Nonnull final Screen screen) {
         this.nifty = nifty;
         this.screen = screen;
 
@@ -61,18 +65,23 @@ public final class BookHandler implements ScreenController, UpdatableHandler {
         bookTextContent = bookDisplay.getElement().findElementByName("#textContent");
         bookScrollArea = bookDisplay.getElement().findNiftyControl("#scrollArea", ScrollPanel.class);
         pageNumberLabel = bookDisplay.getElement().findNiftyControl("#pageNumber", Label.class);
+
+        bookDisplay.getElement().setConstraintX(new SizeValue(IllaClient.getCfg().getString("bookDisplayPosX")));
+        bookDisplay.getElement().setConstraintY(new SizeValue(IllaClient.getCfg().getString("bookDisplayPosY")));
+        bookDisplay.getElement().getParent().layoutElements();
     }
 
     @Override
     public void onStartScreen() {
-        AnnotationProcessor.process(this);
         nifty.subscribeAnnotations(this);
     }
 
     @Override
     public void onEndScreen() {
-        AnnotationProcessor.unprocess(this);
         nifty.unsubscribeAnnotations(this);
+
+        IllaClient.getCfg().set("bookDisplayPosX", Integer.toString(bookDisplay.getElement().getX()) + "px");
+        IllaClient.getCfg().set("bookDisplayPosY", Integer.toString(bookDisplay.getElement().getY()) + "px");
     }
 
     @Override
@@ -173,18 +182,6 @@ public final class BookHandler implements ScreenController, UpdatableHandler {
         bookScrollArea.setAutoScroll(ScrollPanel.AutoScroll.OFF);
     }
 
-    @EventSubscriber
-    public void onBookReceivedEvent(final ShowBookEvent data) {
-        final Book book = BookFactory.getInstance().getBook(data.getBookId());
-        if (book != null) {
-            showBook = book.getLocalisedBook(Lang.getInstance().getLocale());
-            showPage = 0;
-        } else {
-            showBook = null;
-        }
-        dirty = true;
-    }
-
     private int getTotalPageCount() {
         if (showBook == null) {
             return 0;
@@ -214,6 +211,28 @@ public final class BookHandler implements ScreenController, UpdatableHandler {
 
     @NiftyEventSubscriber(id = "book")
     public void onHideWindow(final String topic, final WindowClosedEvent data) {
+        hideBook();
+    }
+
+    /**
+     * Show the book with the specified ID.
+     *
+     * @param id the id of the book to show
+     */
+    @Override
+    public void showBook(final int id) {
+        final Book book = BookFactory.getInstance().getBook(id);
+        if (book != null) {
+            showBook = book.getLocalisedBook(Lang.getInstance().getLocale());
+            showPage = 0;
+        } else {
+            showBook = null;
+        }
+        dirty = true;
+    }
+
+    @Override
+    public void hideBook() {
         showBook = null;
         dirty = true;
     }

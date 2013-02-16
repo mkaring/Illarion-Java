@@ -28,17 +28,14 @@ import de.lessvoid.nifty.elements.Element;
 import de.lessvoid.nifty.screen.Screen;
 import de.lessvoid.nifty.screen.ScreenController;
 import de.lessvoid.nifty.tools.Color;
-import illarion.client.net.server.events.BroadcastInformReceivedEvent;
-import illarion.client.net.server.events.ScriptInformReceivedEvent;
-import illarion.client.net.server.events.ServerInformReceivedEvent;
-import illarion.client.net.server.events.TextToInformReceivedEvent;
+import illarion.client.gui.InformGui;
+import illarion.client.util.UpdateTask;
+import illarion.client.world.World;
 import org.apache.log4j.Logger;
-import org.bushe.swing.event.annotation.AnnotationProcessor;
-import org.bushe.swing.event.annotation.EventSubscriber;
 import org.newdawn.slick.GameContainer;
+import org.newdawn.slick.state.StateBasedGame;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import javax.annotation.Nonnull;
 
 /**
  * This handler is used to show and hide all the temporary inform messages on the screen. It provides the required
@@ -46,11 +43,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * @author Martin Karing &gt;nitram@illarion.org&lt;
  */
-public final class InformHandler implements ScreenController, UpdatableHandler {
+public final class InformHandler implements InformGui, ScreenController {
     /**
      * This task is created as storage for the creation on the information display.
      */
-    private static final class InformBuildTask {
+    private final class InformBuildTask implements UpdateTask {
         /**
          * The element builder that is executed to create the inform message.
          */
@@ -80,31 +77,16 @@ public final class InformHandler implements ScreenController, UpdatableHandler {
             this.layoutParent = layoutParent;
         }
 
-        /**
-         * Get the element builder that will create the information line.
-         *
-         * @return the element builder of the inform
-         */
-        public ElementBuilder getBuilder() {
-            return builder;
-        }
+        @Override
+        public void onUpdateGame(@Nonnull final GameContainer container, final StateBasedGame game, final int delta) {
+            if (!parent.isVisible()) {
+                parent.showWithoutEffects();
+            }
 
-        /**
-         * Get the parent element. Inside this element the builder will be executed.
-         *
-         * @return the parent element
-         */
-        public Element getParent() {
-            return parent;
-        }
-
-        /**
-         * Get the parent element that needs to get a new layout.
-         *
-         * @return the layout parent element
-         */
-        public Element getLayoutParent() {
-            return layoutParent;
+            final Element msg = builder.build(parentNifty, parentScreen, parent);
+            msg.showWithoutEffects();
+            layoutParent.layoutElements();
+            msg.hide(new InformHandler.RemoveEndNotify(msg));
         }
     }
 
@@ -178,11 +160,6 @@ public final class InformHandler implements ScreenController, UpdatableHandler {
     private Screen parentScreen;
 
     /**
-     * This queue stores the builder of server inform labels until they are executed.
-     */
-    private final Queue<InformHandler.InformBuildTask> builderQueue;
-
-    /**
      * This is the panel that will be parent to all broadcast messages.
      */
     private Element broadcastParentPanel;
@@ -202,15 +179,8 @@ public final class InformHandler implements ScreenController, UpdatableHandler {
      */
     private Element scriptParentPanel;
 
-    /**
-     * Default constructor.
-     */
-    public InformHandler() {
-        builderQueue = new ConcurrentLinkedQueue<InformHandler.InformBuildTask>();
-    }
-
     @Override
-    public void bind(final Nifty nifty, final Screen screen) {
+    public void bind(final Nifty nifty, @Nonnull final Screen screen) {
         parentNifty = nifty;
         parentScreen = screen;
 
@@ -222,98 +192,52 @@ public final class InformHandler implements ScreenController, UpdatableHandler {
 
     @Override
     public void onEndScreen() {
-        AnnotationProcessor.unprocess(this);
+        // nothing to do
     }
 
     @Override
     public void onStartScreen() {
-        AnnotationProcessor.process(this);
+        // nothing to do
     }
 
     @Override
-    public void update(final GameContainer container, final int delta) {
-        while (true) {
-            final InformHandler.InformBuildTask task = builderQueue.poll();
-            if (task == null) {
-                return;
-            }
-
-            final Element parentPanel = task.getParent();
-
-            if (!parentPanel.isVisible()) {
-                parentPanel.show();
-            }
-
-            final Element msg = task.getBuilder().build(parentNifty, parentScreen, parentPanel);
-            msg.showWithoutEffects();
-            task.getLayoutParent().layoutElements();
-            msg.hide(new InformHandler.RemoveEndNotify(msg));
-        }
-    }
-
-    @EventSubscriber
-    public void onBroadcastInformReceivedEvent(final BroadcastInformReceivedEvent event) {
+    public void showBroadcastInform(@Nonnull final String message) {
         if (broadcastParentPanel == null) {
             LOGGER.warn("Received server inform before the GUI became ready.");
             return;
         }
 
         final LabelBuilder labelBuilder = new LabelBuilder();
-        labelBuilder.label(event.getMessage());
+        labelBuilder.label(message);
         labelBuilder.font("menuFont");
         labelBuilder.invisibleToMouse();
 
         final EffectBuilder effectBuilder = new EffectBuilder("hide");
-        effectBuilder.startDelay(10000 + (event.getMessage().length() * 50));
+        effectBuilder.startDelay(10000 + (message.length() * 50));
         labelBuilder.onHideEffect(effectBuilder);
 
         showInform(labelBuilder, broadcastParentPanel, broadcastParentPanel.getParent());
     }
 
-    @EventSubscriber
-    public void onServerInformReceivedEvent(final ServerInformReceivedEvent event) {
-        if (serverParentPanel == null) {
-            LOGGER.warn("Received server inform before the GUI became ready.");
-            return;
-        }
-
-        final PanelBuilder panelBuilder = new PanelBuilder();
-        panelBuilder.childLayoutHorizontal();
-
-        final LabelBuilder labelBuilder = new LabelBuilder();
-        panelBuilder.control(labelBuilder);
-        labelBuilder.label("Server> " + event.getMessage());
-        labelBuilder.font("consoleFont");
-        labelBuilder.invisibleToMouse();
-
-        final EffectBuilder effectBuilder = new EffectBuilder("hide");
-        effectBuilder.startDelay(10000 + (event.getMessage().length() * 50));
-        panelBuilder.onHideEffect(effectBuilder);
-
-        showInform(panelBuilder, serverParentPanel, serverParentPanel.getParent());
+    /**
+     * Show a inform on the screen.
+     *
+     * @param informBuilder the builder that is meant to create the inform message
+     * @param parent        the parent element that stores the inform message
+     * @param layoutParent  the element that needs to get its layout recalculated
+     */
+    public void showInform(final ElementBuilder informBuilder, final Element parent, final Element layoutParent) {
+        World.getUpdateTaskManager().addTask(new InformBuildTask(informBuilder, parent, layoutParent));
     }
 
-    @EventSubscriber
-    public void onTextToInformReceivedEvent(final TextToInformReceivedEvent event) {
-        if (textToParentPanel == null) {
-            LOGGER.warn("Received server inform before the GUI became ready.");
-            return;
-        }
-
-        final LabelBuilder labelBuilder = new LabelBuilder();
-        labelBuilder.label(event.getMessage());
-        labelBuilder.font("textFont");
-        labelBuilder.invisibleToMouse();
-
-        final EffectBuilder effectBuilder = new EffectBuilder("hide");
-        effectBuilder.startDelay(10000 + (event.getMessage().length() * 50));
-        labelBuilder.onHideEffect(effectBuilder);
-
-        showInform(labelBuilder, textToParentPanel, textToParentPanel.getParent());
-    }
-
-    @EventSubscriber
-    public void onScriptInformReceivedEvent(final ScriptInformReceivedEvent event) {
+    /**
+     * Show a script inform message on the screen.
+     *
+     * @param priority the priority of the message
+     * @param message  the message
+     */
+    @Override
+    public void showScriptInform(final int priority, @Nonnull final String message) {
         if (scriptParentPanel == null) {
             LOGGER.warn("Received script inform before the GUI became ready.");
             return;
@@ -326,9 +250,9 @@ public final class InformHandler implements ScreenController, UpdatableHandler {
 
         final LabelBuilder labelBuilder = new LabelBuilder();
         panelBuilder.control(labelBuilder);
-        labelBuilder.label(event.getMessage());
+        labelBuilder.label(message);
         labelBuilder.font("textFont");
-        switch (event.getInformPriority()) {
+        switch (priority) {
             case 1:
                 labelBuilder.color(Color.WHITE);
                 break;
@@ -346,7 +270,7 @@ public final class InformHandler implements ScreenController, UpdatableHandler {
         labelBuilder.parameter("wrap", "true");
 
         final EffectBuilder moveEffectBuilder = new EffectBuilder("move");
-        moveEffectBuilder.length(getScriptInformDisplayTime(event.getMessage(), event.getInformPriority()));
+        moveEffectBuilder.length(getScriptInformDisplayTime(message, priority));
         moveEffectBuilder.startDelay(0);
         moveEffectBuilder.effectParameter("mode", "toOffset");
         moveEffectBuilder.effectParameter("direction", "bottom");
@@ -354,7 +278,7 @@ public final class InformHandler implements ScreenController, UpdatableHandler {
         labelBuilder.onHideEffect(moveEffectBuilder);
 
         final EffectBuilder fadeOutBuilder = new EffectBuilder("fade");
-        fadeOutBuilder.length(getScriptInformDisplayTime(event.getMessage(), event.getInformPriority()));
+        fadeOutBuilder.length(getScriptInformDisplayTime(message, priority));
         fadeOutBuilder.startDelay(0);
         fadeOutBuilder.effectParameter("start", "FF");
         fadeOutBuilder.effectParameter("end", "00");
@@ -365,21 +289,52 @@ public final class InformHandler implements ScreenController, UpdatableHandler {
         showInform(panelBuilder, scriptParentPanel, scriptParentPanel.getParent());
     }
 
-    private static int getScriptInformDisplayTime(final CharSequence text, final int priority) {
+    private static int getScriptInformDisplayTime(@Nonnull final CharSequence text, final int priority) {
         if (priority == 0) {
             return 5000 + (text.length() * 50);
         }
         return 8000 + (text.length() * 50);
     }
 
-    /**
-     * Show a inform on the screen.
-     *
-     * @param informBuilder the builder that is meant to create the inform message
-     * @param parent        the parent element that stores the inform message
-     * @param layoutParent  the element that needs to get its layout recalculated
-     */
-    public void showInform(final ElementBuilder informBuilder, final Element parent, final Element layoutParent) {
-        builderQueue.offer(new InformHandler.InformBuildTask(informBuilder, parent, layoutParent));
+    @Override
+    public void showServerInform(@Nonnull final String message) {
+        if (serverParentPanel == null) {
+            LOGGER.warn("Received server inform before the GUI became ready.");
+            return;
+        }
+
+        final PanelBuilder panelBuilder = new PanelBuilder();
+        panelBuilder.childLayoutHorizontal();
+
+        final LabelBuilder labelBuilder = new LabelBuilder();
+        panelBuilder.control(labelBuilder);
+        labelBuilder.label("Server> " + message);
+        labelBuilder.font("consoleFont");
+        labelBuilder.invisibleToMouse();
+
+        final EffectBuilder effectBuilder = new EffectBuilder("hide");
+        effectBuilder.startDelay(10000 + (message.length() * 50));
+        panelBuilder.onHideEffect(effectBuilder);
+
+        showInform(panelBuilder, serverParentPanel, serverParentPanel.getParent());
+    }
+
+    @Override
+    public void showTextToInform(@Nonnull final String message) {
+        if (textToParentPanel == null) {
+            LOGGER.warn("Received server inform before the GUI became ready.");
+            return;
+        }
+
+        final LabelBuilder labelBuilder = new LabelBuilder();
+        labelBuilder.label(message);
+        labelBuilder.font("textFont");
+        labelBuilder.invisibleToMouse();
+
+        final EffectBuilder effectBuilder = new EffectBuilder("hide");
+        effectBuilder.startDelay(10000 + (message.length() * 50));
+        labelBuilder.onHideEffect(effectBuilder);
+
+        showInform(labelBuilder, textToParentPanel, textToParentPanel.getParent());
     }
 }

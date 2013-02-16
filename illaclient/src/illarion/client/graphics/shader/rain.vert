@@ -1,4 +1,8 @@
-#version 120
+#version 110
+
+#ifdef GL_ES
+precision mediump float;
+#endif
 
 void main() {
    gl_TexCoord[0] = gl_MultiTexCoord0;

@@ -22,9 +22,10 @@ import illarion.client.net.CommandList;
 import illarion.common.net.NetCommWriter;
 import illarion.common.types.CharacterId;
 
+import javax.annotation.Nonnull;
+
 /**
- * Client Command: Looking at a character (
- * {@link illarion.client.net.CommandList#CMD_LOOKAT_CHAR}).
+ * Client Command: Looking at a character ({@link CommandList#CMD_LOOKAT_CHAR}).
  *
  * @author Nop
  * @author Martin Karing &lt;nitram@illarion.org&gt;
@@ -64,16 +65,6 @@ public final class LookatCharCmd extends AbstractCommand {
     }
 
     /**
-     * Create a duplicate of this look at character command.
-     *
-     * @return new instance of this command
-     */
-    @Override
-    public LookatCharCmd clone() {
-        return new LookatCharCmd();
-    }
-
-    /**
      * Encode the data of this look at character command and put the values into
      * the buffer.
      *
@@ -81,7 +72,7 @@ public final class LookatCharCmd extends AbstractCommand {
      *               communication system
      */
     @Override
-    public void encode(final NetCommWriter writer) {
+    public void encode(@Nonnull final NetCommWriter writer) {
         charId.encode(writer);
         writer.writeByte(mode);
     }
@@ -103,6 +94,7 @@ public final class LookatCharCmd extends AbstractCommand {
      *
      * @return the data of this command as string
      */
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {

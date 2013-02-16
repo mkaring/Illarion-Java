@@ -19,42 +19,53 @@
 package illarion.client.world;
 
 import illarion.client.graphics.AnimationManager;
-import illarion.client.graphics.Avatar;
 import illarion.client.graphics.MapDisplayManager;
+import illarion.client.gui.GameGui;
+import illarion.client.gui.controller.GameScreenController;
 import illarion.client.net.NetComm;
 import illarion.client.util.ChatHandler;
+import illarion.client.util.UpdateTaskManager;
 import illarion.client.world.interactive.InteractionManager;
 import illarion.common.graphics.LightTracer;
 import illarion.common.util.StoppableStorage;
-import org.apache.log4j.Logger;
+import org.newdawn.slick.GameContainer;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * This class is used to unify the access to the different components of the
- * game and to ensure a proper initialization and cleaning of those components
- * if needed.
+ * This class is used to unify the access to the different components of the game and to ensure a proper
+ * initialization and cleaning of those components if needed.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@ThreadSafe
 public final class World {
     /**
      * The singleton instance of this class.
      */
+    @Nonnull
     private static final World INSTANCE = new World();
 
+    /**
+     * Shutdown every class that is currently maintained by the world.
+     */
+    @SuppressWarnings("StaticMethodOnlyUsedInOneClass")
     public static void cleanEnvironment() {
         synchronized (INSTANCE) {
             StoppableStorage.getInstance().shutdown();
 
             if (INSTANCE.net != null) {
+                //noinspection ConstantConditions
                 INSTANCE.net.disconnect();
             }
             if (INSTANCE.player != null) {
+                //noinspection ConstantConditions
                 INSTANCE.player.shutdown();
             }
             if (INSTANCE.map != null) {
+                //noinspection ConstantConditions
                 INSTANCE.map.getMinimap().saveMap();
             }
 
@@ -65,43 +76,50 @@ public final class World {
             INSTANCE.musicBox = null;
             INSTANCE.lights = null;
 
-
             INSTANCE.player = null;
             INSTANCE.people = null;
             INSTANCE.net = null;
             INSTANCE.weather = null;
             INSTANCE.clock = null;
-
-            if (INSTANCE.executorService != null) {
-                INSTANCE.executorService.shutdownNow();
-            }
-            INSTANCE.executorService = null;
+            INSTANCE.updateManager = null;
 
         }
     }
 
+    @Nonnull
     public static AnimationManager getAnimationManager() {
-        INSTANCE.checkAniManager();
-        return INSTANCE.aniManager;
+        final AnimationManager instance = INSTANCE.aniManager;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
-    public static Avatar getAvatar() {
-        return getPlayer().getCharacter().getAvatar();
-    }
-
+    @Nonnull
     public static Clock getClock() {
-        INSTANCE.checkClock();
-        return INSTANCE.clock;
+        final Clock instance = INSTANCE.clock;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
+    @Nonnull
     public static ChatHandler getChatHandler() {
-        INSTANCE.checkChatHandler();
-        return INSTANCE.chatHandler;
+        final ChatHandler instance = INSTANCE.chatHandler;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
+    @Nonnull
     public static LightTracer getLights() {
-        INSTANCE.checkLights();
-        return INSTANCE.lights;
+        final LightTracer instance = INSTANCE.lights;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
     /**
@@ -109,100 +127,130 @@ public final class World {
      *
      * @return the map of the game
      */
+    @Nonnull
     public static GameMap getMap() {
-        INSTANCE.checkGameMap();
-        return INSTANCE.map;
+        final GameMap instance = INSTANCE.map;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
+    @Nonnull
     public static MapDisplayManager getMapDisplay() {
-        INSTANCE.checkMapDisplay();
-        return INSTANCE.mapDisplay;
+        final MapDisplayManager instance = INSTANCE.mapDisplay;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
+    @Nonnull
     public static MusicBox getMusicBox() {
-        INSTANCE.checkMusicBox();
-        return INSTANCE.musicBox;
+        final MusicBox instance = INSTANCE.musicBox;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
+    @Nonnull
     public static NetComm getNet() {
-        INSTANCE.checkNet();
-        return INSTANCE.net;
+        final NetComm instance = INSTANCE.net;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
+    @Nonnull
     public static People getPeople() {
-        INSTANCE.checkPeople();
-        return INSTANCE.people;
+        final People instance = INSTANCE.people;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
+    @Nonnull
     public static Player getPlayer() {
-        INSTANCE.checkPlayer();
-        return INSTANCE.player;
+        final Player instance = INSTANCE.player;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
+    @Nonnull
     public static Weather getWeather() {
-        INSTANCE.checkWeather();
-        return INSTANCE.weather;
+        final Weather instance = INSTANCE.weather;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
+    @Nonnull
     public static InteractionManager getInteractionManager() {
-        INSTANCE.checkInteractionManager();
-        return INSTANCE.interactionManager;
+        final InteractionManager instance = INSTANCE.interactionManager;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
-    public static ExecutorService getExecutorService() {
-        INSTANCE.checkExecutorService();
-        return INSTANCE.executorService;
+    @Nonnull
+    public static UpdateTaskManager getUpdateTaskManager() {
+        final UpdateTaskManager instance = INSTANCE.updateManager;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
-    public static void initMissing() {
-        getAnimationManager();
-        getChatHandler();
-        getMap();
-        getMusicBox();
-        getLights();
-        getPlayer();
-        getPeople();
-        getNet();
-        getClock();
-        getWeather();
-        getInteractionManager();
-        getExecutorService();
+    @Nonnull
+    public static GameGui getGameGui() {
+        final GameGui instance = INSTANCE.gameGui;
+        if (instance == null) {
+            throw new IllegalStateException("World is not yet initialized");
+        }
+        return instance;
     }
 
     /**
-     * The animation manager that takes care for updating and synchronizing the
-     * animations in the game.
+     * The animation manager that takes care for updating and synchronizing the animations in the game.
      */
+    @Nullable
     private AnimationManager aniManager;
 
     /**
      * The manager that takes care for the interaction between map and GUI.
      */
+    @Nullable
     private InteractionManager interactionManager;
 
     /**
-     * The class that handles the chat in and output.
+     * The class that handles the Chat in and output.
      */
+    @Nullable
     private ChatHandler chatHandler;
 
     /**
      * The instance of the clock used to keep track of the time in Illarion.
      */
+    @Nullable
     private Clock clock;
 
     /**
      * The instance of the light tracer of the game.
      */
+    @Nullable
     private LightTracer lights;
-
-    /**
-     * The logger of this class.
-     */
-    private final Logger log;
 
     /**
      * The instance of the map of the game.
      */
+    @Nullable
     private GameMap map;
 
     /**
@@ -213,144 +261,92 @@ public final class World {
     /**
      * The music box that takes care for playing the proper music.
      */
+    @Nullable
     private MusicBox musicBox;
 
     /**
      * The network communication interface that is used in this game session.
      */
+    @Nullable
     private NetComm net;
 
     /**
      * The instance of the people storage that is used in this session.
      */
+    @Nullable
     private People people;
 
     /**
      * The instance of the player who plays currently.
      */
+    @Nullable
     private Player player;
 
     /**
      * The weather class that is used to maintain the current weather and
      * display it.
      */
+    @Nullable
     private Weather weather;
 
     /**
-     * The executor service that is used for the execution of all concurrent tasks.
+     * This update manager takes care for executing tasks in sync with the main loop.
      */
-    private ExecutorService executorService;
+    @Nullable
+    private UpdateTaskManager updateManager;
+
+    /**
+     * The reference to the GUI of the game.
+     */
+    @Nullable
+    private GameGui gameGui;
 
     /**
      * Private constructor to ensure the sole instance is the singleton
      * instance.
      */
     private World() {
-        log = Logger.getLogger(World.class);
     }
 
-    private void checkAniManager() {
-        if (aniManager == null) {
-            synchronized (this) {
-                aniManager = new AnimationManager();
-            }
+    /**
+     * This variable is set {@code true} once the world is initialized.
+     */
+    private boolean init;
+
+    /**
+     * Prepare all components of the world. This needs to be called before the world is used.
+     */
+    public static synchronized void initWorldComponents() {
+        if (INSTANCE.init) {
+            return;
         }
+        INSTANCE.init = true;
+        INSTANCE.updateManager = new UpdateTaskManager();
+        INSTANCE.aniManager = new AnimationManager();
+        INSTANCE.chatHandler = new ChatHandler();
+        INSTANCE.clock = new Clock();
+        INSTANCE.map = new GameMap();
+        //noinspection ConstantConditions
+        INSTANCE.lights = new LightTracer(INSTANCE.map);
+        INSTANCE.mapDisplay = new MapDisplayManager();
+        INSTANCE.musicBox = new MusicBox();
+        INSTANCE.net = new NetComm();
+        INSTANCE.people = new People();
+        INSTANCE.player = new Player();
+        INSTANCE.weather = new Weather();
+        INSTANCE.interactionManager = new InteractionManager();
+
+        assert INSTANCE.lights != null;
+        //noinspection ConstantConditions
+        INSTANCE.lights.start();
     }
 
-    private void checkChatHandler() {
-        if (chatHandler == null) {
-            synchronized (this) {
-                chatHandler = new ChatHandler();
-            }
-        }
-    }
-
-    private void checkClock() {
-        if (clock == null) {
-            synchronized (this) {
-                clock = new Clock();
-            }
-        }
-    }
-
-    private void checkGameMap() {
-        if (map == null) {
-            synchronized (this) {
-                map = new GameMap();
-            }
-        }
-    }
-
-    private void checkLights() {
-        if (lights == null) {
-            synchronized (this) {
-                lights = new LightTracer(getMap());
-                lights.start();
-            }
-        }
-    }
-
-    private void checkMapDisplay() {
-        if (mapDisplay == null) {
-            synchronized (this) {
-                mapDisplay = new MapDisplayManager();
-            }
-        }
-    }
-
-    private void checkMusicBox() {
-        if (musicBox == null) {
-            synchronized (this) {
-                musicBox = new MusicBox();
-            }
-        }
-    }
-
-    private void checkNet() {
-        if (net == null) {
-            synchronized (this) {
-                net = new NetComm();
-            }
-        }
-    }
-
-    private void checkPeople() {
-        if (people == null) {
-            synchronized (this) {
-                people = new People();
-            }
-        }
-    }
-
-    private void checkPlayer() {
-        if (player == null) {
-            synchronized (this) {
-                player = new Player();
-            }
-        }
-    }
-
-    private void checkWeather() {
-        if (weather == null) {
-            synchronized (this) {
-                weather = new Weather();
-            }
-        }
-    }
-
-    private void checkInteractionManager() {
-        if (interactionManager == null) {
-            synchronized (this) {
-                interactionManager = new InteractionManager();
-            }
-        }
-    }
-
-    private void checkExecutorService() {
-        if (executorService == null) {
-            synchronized (this) {
-                executorService = Executors.newCachedThreadPool();
-            }
-        }
+    /**
+     * Init the GUI of the game.
+     *
+     * @param container the container of the game
+     */
+    public static synchronized void initGui(final GameContainer container) {
+        INSTANCE.gameGui = new GameScreenController(container.getInput());
     }
 }

@@ -24,16 +24,16 @@ import de.lessvoid.nifty.slick2d.loaders.SlickRenderImageLoaders;
 import illarion.client.crash.DefaultCrashHandler;
 import illarion.client.graphics.FontLoader;
 import illarion.client.graphics.TextureLoader;
-import illarion.client.net.CommandFactory;
-import illarion.client.net.CommandList;
-import illarion.client.net.client.SimpleCmd;
+import illarion.client.net.client.LogoutCmd;
 import illarion.client.resources.SongFactory;
 import illarion.client.resources.SoundFactory;
 import illarion.client.resources.loaders.SongLoader;
 import illarion.client.resources.loaders.SoundLoader;
 import illarion.client.util.ChatLog;
+import illarion.client.util.GlobalExecutorService;
 import illarion.client.util.Lang;
 import illarion.client.world.MapDimensions;
+import illarion.client.world.Player;
 import illarion.client.world.World;
 import illarion.common.bug.CrashReporter;
 import illarion.common.config.Config;
@@ -54,7 +54,10 @@ import org.newdawn.slick.state.GameState;
 import org.newdawn.slick.util.Log;
 import org.newdawn.slick.util.LogSystem;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.swing.*;
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -79,11 +82,12 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
     /**
      * The version information of this client. This version is shows at multiple positions within the client.
      */
-    public static final String VERSION = "2.0"; //$NON-NLS-1$
+    public static final String VERSION = "2.0.14"; //$NON-NLS-1$
 
     /**
      * The default server the client connects too. The client will always connect to this server.
      */
+    @Nonnull
     public static final Servers DEFAULT_SERVER;
 
     static {
@@ -114,7 +118,8 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      * the
      * files.
      */
-    private static Properties tempProps = new Properties();
+    @Nonnull
+    private static final Properties tempProps = new Properties();
 
     /**
      * The configuration of the client settings.
@@ -140,7 +145,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
     /**
      * This is the reference to the Illarion Game instance.
      */
-    private illarion.client.Game game;
+    private Game game;
 
     /**
      * The container that is used to display the game.
@@ -159,7 +164,14 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
     }
 
     private void init() {
+        try {
+            EventServiceLocator.setEventService(EventServiceLocator.SERVICE_NAME_EVENT_BUS, new ThreadSafeEventService());
+        } catch (EventServiceExistsException e1) {
+            LOGGER.error("Failed preparing the EventBus. Settings the Service handler happened too late");
+        }
+
         prepareConfig();
+        assert cfg != null;
         try {
             initLogfiles();
         } catch (IOException e) {
@@ -167,12 +179,12 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
             e.printStackTrace(System.err);
         }
 
+        Lang.getInstance().recheckLocale(cfg.getString(Lang.LOCALE_CFG));
         CrashReporter.getInstance().setConfig(getCfg());
 
-        try {
-            EventServiceLocator.setEventService(EventServiceLocator.SERVICE_NAME_EVENT_BUS, new ThreadSafeEventService());
-        } catch (EventServiceExistsException e1) {
-            LOGGER.error("Failed preparing the EventBus. Settings the Service handler happened too late");
+        // Disable error reporting for the testserver
+        if (DEFAULT_SERVER == Servers.testserver) {
+            CrashReporter.getInstance().setMode(CrashReporter.MODE_NEVER);
         }
 
         Renderer.setRenderer(Renderer.IMMEDIATE_RENDERER);
@@ -188,14 +200,30 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
             LOGGER.error("Failed to load sounds and music!");
         }
 
-        game = new illarion.client.Game();
+        game = new Game();
 
-        final GraphicResolution res = new GraphicResolution(cfg.getString(CFG_RESOLUTION));
+        GraphicResolution res = null;
+        final String resolutionString = cfg.getString(CFG_RESOLUTION);
+        if (resolutionString != null) {
+            try {
+                res = new GraphicResolution(resolutionString);
+            } catch (@Nonnull final IllegalArgumentException ex) {
+                LOGGER.error("Failed to initialize screen resolution. Falling back.");
+            }
+        }
+        if (res == null) {
+            res = new GraphicResolution(800, 600, 32, 60);
+        }
 
         try {
-            gameContainer = new AppGameContainer(game, res.getWidth(), res.getHeight(),
-                    cfg.getBoolean(CFG_FULLSCREEN));
-            MapDimensions.getInstance().reportScreenSize(gameContainer.getWidth(), gameContainer.getHeight());
+            if (cfg.getBoolean(CFG_FULLSCREEN)) {
+                gameContainer = new AppGameContainer(game, res.getWidth(), res.getHeight(), true);
+            } else {
+                final int windowedWidth = cfg.getInteger("windowWidth");
+                final int windowedHeight = cfg.getInteger("windowHeight");
+                gameContainer = new AppGameContainer(game, (windowedWidth < 0) ? res.getWidth() : windowedWidth,
+                        (windowedHeight < 0) ? res.getHeight() : windowedHeight, false);
+            }
         } catch (SlickException e) {
             LOGGER.error("Fatal error creating game screen!!!", e);
             System.exit(-1);
@@ -203,7 +231,9 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
 
         gameContainer.setAlwaysRender(true);
         gameContainer.setUpdateOnlyWhenVisible(false);
-        gameContainer.setResizable(false);
+        gameContainer.setMultiSample(2);
+        gameContainer.setVerbose(true);
+        gameContainer.setResizable(true);
         gameContainer.setTargetFrameRate(res.getRefreshRate());
         gameContainer.setForceExit(false);
         if (DEFAULT_SERVER == Servers.realserver) {
@@ -218,12 +248,14 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
                     "illarion_client64.png", "illarion_client256.png"});
             gameContainer.start();
             LOGGER.info("Client shutdown initiated.");
-        } catch (final Exception e) {
+        } catch (@Nonnull final Exception e) {
             LOGGER.fatal("Exception while launching game.", e);
             Sys.alert("Error", "The client caused a error while starting up: " + e.getMessage());
         } finally {
+            quitGame();
             World.cleanEnvironment();
             cfg.save();
+            GlobalExecutorService.shutdown();
         }
 
         LOGGER.info("Cleanup done.");
@@ -247,6 +279,11 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
             return;
         }
         exitRequested = true;
+
+        INSTANCE.game.enterState(Game.STATE_ENDING);
+    }
+
+    public static void exitGameContainer() {
         INSTANCE.gameContainer.exit();
     }
 
@@ -282,6 +319,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      * @param message the message that shall be displayed in the login screen
      */
     public static void fallbackToLogin(final String message) {
+        LOGGER.warn(message);
         ensureExit();
         //INSTANCE.game.enterState(Game.STATE_LOGIN);
         //World.cleanEnvironment();
@@ -312,6 +350,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      *
      * @return the singleton instance of this class
      */
+    @Nonnull
     public static IllaClient getInstance() {
         return INSTANCE;
     }
@@ -331,6 +370,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      *
      * @return the version text of this client
      */
+    @Nonnull
     public static String getVersionText() {
         return "Illarion Client " + VERSION; //$NON-NLS-1$
     }
@@ -341,12 +381,8 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      * @param flag the debug flag that shall be checked
      * @return true in case the flag is enabled, false if not
      */
-    public static boolean isDebug(final Debug flag) {
+    public static boolean isDebug(@Nonnull final Debug flag) {
         return (INSTANCE.debugLevel & (1 << flag.ordinal())) > 0;
-    }
-
-    public static void initChatLog() {
-        ChatLog.getInstance().init(tempProps);
     }
 
     /**
@@ -403,7 +439,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      *
      * @return true in case the exit dialog is currently displayed
      */
-    protected static boolean getExitRequested() {
+    private static boolean getExitRequested() {
         return exitRequested;
     }
 
@@ -421,7 +457,9 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
             System.exit(-1);
         }
 
-        return DirectoryManager.getInstance().getUserDirectory().getAbsolutePath();
+        final File userDirectory = DirectoryManager.getInstance().getUserDirectory();
+        assert userDirectory != null;
+        return userDirectory.getAbsolutePath();
     }
 
     /**
@@ -437,12 +475,11 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      * End the game by user request and send the logout command to the server.
      */
     public void quitGame() {
-        // send logoff command
-        if (World.getNet() == null) {
-            return;
+        try {
+            World.getNet().sendCommand(new LogoutCmd());
+        } catch (@Nonnull final IllegalStateException ex) {
+            // the NET was not launched up yet. This does not really matter.
         }
-        final SimpleCmd cmd = (SimpleCmd) CommandFactory.getInstance().getCommand(CommandList.CMD_LOGOFF);
-        World.getNet().sendCommand(cmd);
     }
 
     /**
@@ -458,7 +495,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      * Basic initialization of the log files and the debug settings.
      */
     @SuppressWarnings("nls")
-    private void initLogfiles() throws IOException {
+    private static void initLogfiles() throws IOException {
         tempProps.load(getResource("logging.properties"));
         tempProps.put("log4j.appender.IllaLogfileAppender.file", getFile("error.log"));
         tempProps.put("log4j.appender.ChatAppender.file", getFile("illarion.log"));
@@ -470,50 +507,50 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
         System.out.println("Startup done.");
         LOGGER.info(getVersionText() + " started.");
         LOGGER.info("VM: " + System.getProperty("java.version"));
-        LOGGER.info("OS: " + System.getProperty("os.name") + " " + System.getProperty("os.version") + " " + System
+        LOGGER.info("OS: " + System.getProperty("os.name") + ' ' + System.getProperty("os.version") + ' ' + System
                 .getProperty("os.arch"));
 
-        java.util.logging.Logger.getAnonymousLogger().getParent().setLevel(Level.SEVERE);
-        java.util.logging.Logger.getLogger("de.lessvoid.nifty").setLevel(Level.SEVERE);
+        //java.util.logging.Logger.getAnonymousLogger().getParent().setLevel(Level.SEVERE);
+        //java.util.logging.Logger.getLogger("de.lessvoid.nifty").setLevel(Level.SEVERE);
         java.util.logging.Logger.getLogger("javolution").setLevel(Level.SEVERE);
         JavaLogToLog4J.setup();
         StdOutToLog4J.setup();
         Log.setLogSystem(new LogSystem() {
-            private final Logger LOGGER = Logger.getLogger(IllaClient.class);
+            private final Logger log = Logger.getLogger(IllaClient.class);
 
             @Override
             public void error(final String s, final Throwable throwable) {
-                LOGGER.error(s, throwable);
+                log.error(s, throwable);
             }
 
             @Override
             public void error(final Throwable throwable) {
-                LOGGER.error("", throwable);
+                log.error("", throwable);
             }
 
             @Override
             public void error(final String s) {
-                LOGGER.error(s);
+                log.error(s);
             }
 
             @Override
             public void warn(final String s) {
-                LOGGER.warn(s);
+                log.warn(s);
             }
 
             @Override
             public void warn(final String s, final Throwable throwable) {
-                LOGGER.warn(s, throwable);
+                log.warn(s, throwable);
             }
 
             @Override
             public void info(final String s) {
-                LOGGER.info(s);
+                log.info(s);
             }
 
             @Override
             public void debug(final String s) {
-                LOGGER.debug(s);
+                log.debug(s);
             }
         });
     }
@@ -528,59 +565,65 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
     private void prepareConfig() {
         cfg = new ConfigSystem(getFile("Illarion.xcfgz"));
         cfg.setDefault("debugLevel", 1);
-        cfg.setDefault("showNameMode", illarion.client.world.People.NAME_SHORT);
         cfg.setDefault("showIDs", false);
         cfg.setDefault("soundOn", true);
-        cfg.setDefault("soundVolume", illarion.client.world.Player.MAX_CLIENT_VOL);
+        cfg.setDefault("soundVolume", Player.MAX_CLIENT_VOL);
         cfg.setDefault("musicOn", true);
-        cfg.setDefault("musicVolume", illarion.client.world.Player.MAX_CLIENT_VOL * 0.75f);
-        cfg.setDefault(illarion.client.util.ChatLog.CFG_TEXTLOG, true);
-        cfg.setDefault("fadingTime", 600);
+        cfg.setDefault("musicVolume", Player.MAX_CLIENT_VOL * 0.75f);
+        cfg.setDefault(ChatLog.CFG_TEXTLOG, true);
         cfg.setDefault(CFG_FULLSCREEN, false);
         cfg.setDefault(CFG_RESOLUTION, new GraphicResolution(800, 600, 32, 60).toString());
-        cfg.setDefault("legacyRender", false);
+        cfg.setDefault("windowWidth", -1);
+        cfg.setDefault("windowHeight", -1);
         cfg.setDefault("savePassword", false);
         cfg.setDefault(CrashReporter.CFG_KEY, CrashReporter.MODE_ASK);
-        cfg.setDefault("engine", 1);
+        cfg.setDefault(Lang.LOCALE_CFG, Lang.LOCALE_CFG_ENGLISH);
+        cfg.setDefault("inventoryPosX", "100px");
+        cfg.setDefault("inventoryPosY", "10px");
+        cfg.setDefault("bookDisplayPosX", "150px");
+        cfg.setDefault("bookDisplayPosY", "15px");
+        cfg.setDefault("skillWindowPosX", "200px");
+        cfg.setDefault("skillWindowPosY", "20px");
+        cfg.setDefault("questWindowPosX", "100px");
+        cfg.setDefault("questWindowPosY", "100px");
+        cfg.setDefault("questShowFinished", false);
+        cfg.setDefault("runAutoAvoid", true);
 
-        final String locale = cfg.getString(Lang.LOCALE_CFG);
-        if (locale == null) {
-            final String jnlpLocale = System.getProperty("illarion.client.locale");
-            if (Lang.LOCALE_CFG_ENGLISH.equals(jnlpLocale)) {
-                cfg.set(Lang.LOCALE_CFG, Lang.LOCALE_CFG_ENGLISH);
-            } else {
-                cfg.set(Lang.LOCALE_CFG, Lang.LOCALE_CFG_GERMAN);
-            }
+        @Nonnull final Toolkit awtDefaultToolkit = Toolkit.getDefaultToolkit();
+        @Nullable final Object doubleClick = awtDefaultToolkit.getDesktopProperty("awt.multiClickInterval");
+        if (doubleClick instanceof Number) {
+            cfg.setDefault("doubleClickInterval", ((Number) doubleClick).intValue());
+        } else {
+            cfg.setDefault("doubleClickInterval", 500);
         }
-
-        final java.awt.Toolkit awtDefaultToolkit = java.awt.Toolkit.getDefaultToolkit();
-        cfg.setDefault("doubleClickInterval", (Integer) awtDefaultToolkit.getDesktopProperty("awt" +
-                ".multiClickInterval"));
 
         final Crypto crypt = new Crypto();
         crypt.loadPublicKey();
         TableLoader.setCrypto(crypt);
-        Lang.getInstance().setConfig(cfg);
     }
 
     @Override
     public void onEvent(final String topic, final ConfigChangedEvent data) {
-        if (CFG_FULLSCREEN.equals(topic)) {
-            try {
-                gameContainer.setFullscreen(cfg.getBoolean(CFG_FULLSCREEN));
-            } catch (SlickException e) {
-                LOGGER.error("Failed to apply fullscreen mode. New requested mode: " +
-                        Boolean.toString(cfg.getBoolean(CFG_FULLSCREEN)));
+        if (CFG_RESOLUTION.equals(topic) || CFG_FULLSCREEN.equals(topic)) {
+            final String resolutionString = cfg.getString(CFG_RESOLUTION);
+            if (resolutionString == null) {
+                LOGGER.error("Failed reading new resolution.");
+                return;
             }
-        } else if (CFG_RESOLUTION.equals(topic)) {
-            final GraphicResolution res = new GraphicResolution(cfg.getString(CFG_RESOLUTION));
-            final boolean fullScreen = cfg.getBoolean(CFG_FULLSCREEN);
             try {
+                final GraphicResolution res = new GraphicResolution(resolutionString);
+                final boolean fullScreen = cfg.getBoolean(CFG_FULLSCREEN);
                 gameContainer.setDisplayMode(res.getWidth(), res.getHeight(), fullScreen);
                 gameContainer.setTargetFrameRate(res.getRefreshRate());
+                if (!fullScreen) {
+                    cfg.set("windowHeight", res.getHeight());
+                    cfg.set("windowWidth", res.getWidth());
+                }
                 MapDimensions.getInstance().reportScreenSize(gameContainer.getWidth(), gameContainer.getHeight());
-            } catch (SlickException e) {
-                LOGGER.error("Failed to apply graphic mode. New requested mode: " + res.toString());
+            } catch (@Nonnull final SlickException e) {
+                LOGGER.error("Failed to apply graphic mode: " + resolutionString);
+            } catch (@Nonnull final IllegalArgumentException ex) {
+                LOGGER.error("Failed to apply graphic mode: " + resolutionString);
             }
         }
     }

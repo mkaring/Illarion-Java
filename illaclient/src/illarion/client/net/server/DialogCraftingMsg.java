@@ -24,10 +24,12 @@ import illarion.client.net.server.events.DialogCraftingReceivedEvent;
 import illarion.client.world.items.CraftingIngredientItem;
 import illarion.client.world.items.CraftingItem;
 import illarion.common.net.NetCommReader;
+import illarion.common.types.ItemCount;
 import illarion.common.types.ItemId;
 import javolution.text.TextBuilder;
 import org.bushe.swing.event.EventBus;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
@@ -64,7 +66,7 @@ public final class DialogCraftingMsg extends AbstractReply {
      * @throws IOException thrown in case there was not enough data received to decode the full message
      */
     @Override
-    public void decode(final NetCommReader reader)
+    public void decode(@Nonnull final NetCommReader reader)
             throws IOException {
         title = reader.readString();
 
@@ -79,18 +81,18 @@ public final class DialogCraftingMsg extends AbstractReply {
             final int group = reader.readUByte();
             final ItemId itemId = new ItemId(reader);
             final String name = reader.readString();
-            final int buildItem = reader.readUShort();
-            final int craftStackSize = reader.readUByte();
+            final int buildTime = reader.readUShort();
+            final ItemCount craftStackSize = ItemCount.getInstance(reader.readUByte());
 
             final CraftingIngredientItem[] ingredients = new CraftingIngredientItem[reader.readUByte()];
             for (int k = 0; k < ingredients.length; k++) {
                 final ItemId ingredientId = new ItemId(reader);
-                final int ingredientCount = reader.readUByte();
+                final ItemCount ingredientCount = ItemCount.getInstance(reader.readUByte());
 
                 ingredients[k] = new CraftingIngredientItem(ingredientId, ingredientCount);
             }
 
-            craftItems[i] = new CraftingItem(itemIndex, group, itemId, name, buildItem, craftStackSize, ingredients);
+            craftItems[i] = new CraftingItem(itemIndex, group, itemId, name, buildTime, craftStackSize, ingredients);
         }
 
         requestId = reader.readInt();
@@ -113,6 +115,7 @@ public final class DialogCraftingMsg extends AbstractReply {
      *
      * @return the string that contains the values that were decoded for this message
      */
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {

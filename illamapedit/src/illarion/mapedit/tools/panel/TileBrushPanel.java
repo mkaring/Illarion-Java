@@ -19,8 +19,10 @@
 package illarion.mapedit.tools.panel;
 
 import illarion.mapedit.Lang;
+import illarion.mapedit.tools.ToolManager;
 import illarion.mapedit.tools.panel.components.TileList;
 
+import javax.annotation.Nonnull;
 import javax.swing.*;
 import java.awt.*;
 
@@ -28,9 +30,12 @@ import java.awt.*;
  * @author Tim
  */
 public class TileBrushPanel extends JPanel {
+    @Nonnull
     private final JSpinner radiusSpinner;
 
-
+    /**
+     * Default constructor
+     */
     public TileBrushPanel() {
         super(new BorderLayout());
 
@@ -38,13 +43,18 @@ public class TileBrushPanel extends JPanel {
 
         final JPanel brushSizePanel = new JPanel(new BorderLayout(5, 0));
         final JLabel radiusLabel = new JLabel(Lang.getMsg("tools.TileBrushTool.Radius"));
-        radiusSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
+        radiusSpinner = new JSpinner(new SpinnerNumberModel(1, 1, ToolManager.TOOL_RADIUS, 1));
         brushSizePanel.add(radiusLabel, BorderLayout.WEST);
         brushSizePanel.add(radiusSpinner, BorderLayout.CENTER);
 
         add(brushSizePanel, BorderLayout.SOUTH);
     }
 
+    /**
+     * Get the radius of the brush
+     *
+     * @return radius
+     */
     public int getRadius() {
         return (Integer) radiusSpinner.getValue();
     }

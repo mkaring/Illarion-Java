@@ -18,6 +18,7 @@
  */
 package illarion.mapedit.events.menu;
 
+import javax.annotation.Nullable;
 import java.io.File;
 
 /**
@@ -25,9 +26,10 @@ import java.io.File;
  */
 public class MapSaveEvent {
 
+    @Nullable
     private final File path;
 
-    public MapSaveEvent(final File path) {
+    public MapSaveEvent(@Nullable final File path) {
 
         this.path = path;
     }
@@ -37,6 +39,7 @@ public class MapSaveEvent {
         this.path = null;
     }
 
+    @Nullable
     public File getPath() {
         return path;
     }

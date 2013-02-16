@@ -26,6 +26,9 @@ import illarion.common.types.Location;
 import illarion.common.util.Reusable;
 import javolution.context.ObjectFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
  * A single path node that is used during the path finding and represents a single step on the path that is searched or
  * was found.
@@ -45,12 +48,12 @@ public final class PathNode
         /**
          * Public constructor so the parent class is able to create a instance.
          */
-        public CleanCacheProcedure() {
+        CleanCacheProcedure() {
             // nothing to do
         }
 
         @Override
-        public boolean execute(final PathNode node) {
+        public boolean execute(@Nonnull final PathNode node) {
             node.reset();
             node.recycle();
             return true;
@@ -68,7 +71,7 @@ public final class PathNode
         /**
          * Public constructor to allow the parent class to create proper instances.
          */
-        public PathNodeFactory() {
+        PathNodeFactory() {
             // nothing to do
         }
 
@@ -77,6 +80,7 @@ public final class PathNode
          *
          * @return the new path node instance
          */
+        @Nonnull
         @Override
         protected PathNode create() {
             return new PathNode();
@@ -87,12 +91,13 @@ public final class PathNode
      * The cache for the path nodes that were loaded already. It needed to store them so the pathfinder can access
      * values calculated before.
      */
-    private static TLongObjectHashMap<PathNode> cache = new TLongObjectHashMap<PathNode>();
+    @Nonnull
+    private static final TLongObjectHashMap<PathNode> CACHE = new TLongObjectHashMap<PathNode>();
 
     /**
      * The instance of the CleanCacheProcedure instance that is used to clean up the path nodes.
      */
-    private static final CleanCacheProcedure CLEAN_HELPER = new CleanCacheProcedure();
+    private static final TObjectProcedure<PathNode> CLEAN_HELPER = new CleanCacheProcedure();
 
     /**
      * The factory used to create and buffer the instances of this path nodes.
@@ -102,62 +107,65 @@ public final class PathNode
     /**
      * Is the tile blocked or not.
      */
-    private boolean blocked = false;
+    private boolean blocked;
 
     /**
      * True if the tile is in the list of tiles that were already checked.
      */
-    private boolean close = false;
+    private boolean close;
 
     /**
      * The movement cost to reach this tile at the current settings. Means the movement cost of this tile and of all
      * tiles stepped on before.
      */
-    private int cost = 0;
+    private int cost;
 
     /**
      * The depth of the tile. Means how many steps it is away from the starting position.
      */
-    private int depth = 0;
+    private int depth;
 
     /**
      * The heuristic value, means the estimated movement cost to reach the target position.
      */
-    private int heuristic = 0;
+    private int heuristic;
 
     /**
      * The location this path node represents.
      */
-    private Location loc;
+    @Nonnull
+    private final Location location;
 
     /**
      * True in case the path node is in the list of tile that still need to be checked.
      */
-    private boolean open = false;
+    private boolean open;
 
     /**
      * The parent node, so the node the character steps on before it reaches this path node.
      */
+    @Nullable
     private PathNode parent;
 
     /**
-     * The map tile of this path node, needed to access some tile related informations.
+     * The map tile of this path node, needed to access some tile related information.
      */
+    @Nullable
     private MapTile tile;
 
     /**
      * Constructor for a path node.
      */
     PathNode() {
-        // nothing to do
+        location = new Location();
     }
 
     /**
      * Delete all nodes in the cache. Needed for a fresh start, like a new path finding.
      */
     public static void clearCache() {
-        cache.forEachValue(CLEAN_HELPER);
-        cache.clear();
+        CACHE.forEachValue(CLEAN_HELPER);
+        CACHE.clear();
     }
 
     /**
@@ -167,14 +175,14 @@ public final class PathNode
      * @param loc the location the path node shall represent
      * @return the path node, fresh created or from the cache
      */
-    public static PathNode getNode(final Location loc) {
+    public static PathNode getNode(@Nonnull final Location loc) {
         final long key = loc.getKey();
-        PathNode node = cache.get(key);
+        PathNode node = CACHE.get(key);
         if (node == null) {
             node = FACTORY.object();
             node.setPosition(loc);
 
-            cache.put(key, node);
+            CACHE.put(key, node);
         }
         return node;
     }
@@ -187,22 +195,20 @@ public final class PathNode
      * @param o the path node this path nodes is compared with
      * @return 0 in case the result of the sumation is the same for both nodes, 1 in case the value of this node is
      *         larger, else -1
-     * @see java.lang.Comparable#compareTo(java.lang.Object)
+     * @see Comparable#compareTo(Object)
      */
     @Override
     public int compareTo(final PathNode o) {
-        final PathNode node = o;
-
         final int ownf = heuristic + cost;
-        final int otherf = node.heuristic + node.cost;
+        final int otherf = o.heuristic + o.cost;
 
         if (ownf < otherf) {
             return -1;
-        } else if (ownf > otherf) {
-            return 1;
-        } else {
-            return 0;
         }
+        if (ownf > otherf) {
+            return 1;
+        }
+        return 0;
     }
 
     /**
@@ -210,15 +216,18 @@ public final class PathNode
      *
      * @param o the path node that is possibly equal with this path node.
      * @return true in case this path node and the path node in the function parameter are equal
-     * @see java.lang.Object#equals(java.lang.Object)
+     * @see Object#equals(Object)
      */
     @Override
     public boolean equals(final Object o) {
+        if (super.equals(o)) {
+            return true;
+        }
         if (!(o instanceof PathNode)) {
             return false;
         }
         final PathNode tempNode = (PathNode) o;
-        return (loc.equals(tempNode.getLocation()));
+        return location.equals(tempNode.getLocation());
     }
 
     /**
@@ -226,7 +235,7 @@ public final class PathNode
      *
      * @return true if its in the list
      */
-    public boolean getClosed() {
+    public boolean isClosed() {
         return close;
     }
 
@@ -251,22 +260,13 @@ public final class PathNode
     }
 
     /**
-     * Get the distance from the position of this node to the destination position.
-     *
-     * @param dest the destination position
-     * @return the distance to the destination position
-     */
-    public int getDistanceTo(final Location dest) {
-        return loc.getDistance(dest);
-    }
-
-    /**
      * Get the location of this path node.
      *
      * @return the location of this path node
      */
+    @Nonnull
     public Location getLocation() {
-        return loc;
+        return location;
     }
 
     /**
@@ -274,7 +274,7 @@ public final class PathNode
      *
      * @return true if its in the list
      */
-    public boolean getOpen() {
+    public boolean isOpen() {
         return open;
     }
 
@@ -283,16 +283,20 @@ public final class PathNode
      *
      * @return the parent path node
      */
+    @Nullable
     public PathNode getParent() {
         return parent;
     }
 
     /**
-     * Get the movement cost to get on this path node, independed from all tiles before.
+     * Get the movement cost to get on this path node, independent from all tiles before.
      *
      * @return the movement cost
      */
     public int getValue() {
+        if (tile == null) {
+            return 0;
+        }
         return tile.getMovementCost();
     }
 
@@ -300,11 +304,11 @@ public final class PathNode
      * Get the has code for this path node.
      *
      * @return the hash code
-     * @see java.lang.Object#hashCode()
+     * @see Object#hashCode()
      */
     @Override
     public int hashCode() {
-        return (int) (loc.getKey() % Integer.MAX_VALUE);
+        return (int) (location.getKey() % Integer.MAX_VALUE);
     }
 
     /**
@@ -325,7 +329,6 @@ public final class PathNode
 
     @Override
     public void reset() {
-        loc = null;
         tile = null;
         parent = null;
         cost = 0;
@@ -381,7 +384,7 @@ public final class PathNode
      *
      * @param newParent the new parent node
      */
-    public void setParent(final PathNode newParent) {
+    public void setParent(@Nonnull final PathNode newParent) {
         parent = newParent;
         depth = newParent.getDepth() + 1;
     }
@@ -391,9 +394,9 @@ public final class PathNode
      *
      * @param location the location of this node
      */
-    public void setPosition(final Location location) {
-        loc = new Location(location);
-        tile = World.getMap().getMapAt(loc);
+    public void setPosition(@Nonnull final Location location) {
+        this.location.set(location);
+        tile = World.getMap().getMapAt(this.location);
         blocked = (tile == null) || tile.isBlocked();
     }
 
@@ -401,11 +404,12 @@ public final class PathNode
      * Get a string that represents this path node.
      *
      * @return a string that contains the position of this path node
-     * @see java.lang.Object#toString()
+     * @see Object#toString()
      */
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {
-        return "(" + loc.getScX() + "," + loc.getScY() + ")";
+        return "(" + location.getScX() + ',' + location.getScY() + ')';
     }
 }

@@ -23,14 +23,19 @@ import illarion.common.util.DirectoryManager;
 import illarion.common.util.MessageSource;
 import javolution.lang.Reflection;
 import javolution.lang.Reflection.Constructor;
-import javolution.text.TextBuilder;
 import org.apache.log4j.Logger;
+import org.mantisbt.connect.IMCSession;
+import org.mantisbt.connect.MCException;
+import org.mantisbt.connect.axis.MCSession;
+import org.mantisbt.connect.model.IIssue;
+import org.mantisbt.connect.model.IProject;
+import org.mantisbt.connect.model.MCAttribute;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.*;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 
@@ -95,6 +100,7 @@ public final class CrashReporter {
      * This URL is the URL of the server that is supposed to receive the crash
      * data using a HTTP POST request.
      */
+    @Nullable
     private static final URL CRASH_SERVER;
 
     /**
@@ -110,11 +116,9 @@ public final class CrashReporter {
     static {
         URL result = null;
         try {
-            result =
-                    new URL("http://illarion.org/development/java_report.php"); //$NON-NLS-1$
-        } catch (final MalformedURLException e) {
-            LOGGER.warn("Preparing the crash report target URL failed. " + //$NON-NLS-1$
-                    "Crash reporter not functional."); //$NON-NLS-1$
+            result = new URL("http://illarion.org/mantis/api/soap/mantisconnect.php"); //$NON-NLS-1$
+        } catch (@Nonnull final MalformedURLException e) {
+            LOGGER.warn("Preparing the crash report target URL failed. Crash reporter not functional."); //$NON-NLS-1$
         }
         CRASH_SERVER = result;
     }
@@ -122,11 +126,13 @@ public final class CrashReporter {
     /**
      * The configuration handler that is used for the settings of this class.
      */
+    @Nullable
     private Config cfg;
 
     /**
      * The currently displayed report dialog is displayed in this class.
      */
+    @Nullable
     private ReportDialog dialog = null;
 
     /**
@@ -159,15 +165,16 @@ public final class CrashReporter {
      *
      * @return the singleton instance of this class
      */
+    @Nonnull
     public static CrashReporter getInstance() {
         return INSTANCE;
     }
 
-    public void dumpCrash(final CrashData crash) {
+    public void dumpCrash(@Nonnull final CrashData crash) {
         LOGGER.fatal("Fatal error occured: " + crash.getDescription());
         LOGGER.fatal("Fatal error exception: " + crash.getExceptionName());
         LOGGER.fatal("Fatal error thread: " + crash.getThreadName());
-        LOGGER.fatal("Fatal error backgrace: " + crash.getStackBacktrace());
+        LOGGER.fatal("Fatal error backtrace: " + crash.getStackBacktrace());
         LOGGER.fatal(crash.getApplicationName() + " is going down. Brace for impact.");
         final Calendar cal = Calendar.getInstance();
         final SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
@@ -179,15 +186,15 @@ public final class CrashReporter {
             oOut = new ObjectOutputStream(new FileOutputStream(target));
             oOut.writeObject(crash);
             oOut.flush();
-        } catch (final FileNotFoundException e) {
+        } catch (@Nonnull final FileNotFoundException e) {
             // ignored
-        } catch (final IOException e) {
+        } catch (@Nonnull final IOException e) {
             // ignored
         } finally {
             if (oOut != null) {
                 try {
                     oOut.close();
-                } catch (final IOException e) {
+                } catch (@Nonnull final IOException e) {
                     // ignored
                 }
             }
@@ -200,7 +207,7 @@ public final class CrashReporter {
      *
      * @param crash the data about the crash
      */
-    public void reportCrash(final CrashData crash) {
+    public void reportCrash(@Nonnull final CrashData crash) {
         reportCrash(crash, false);
     }
 
@@ -213,7 +220,7 @@ public final class CrashReporter {
      *                  to be started in a additional thread
      */
     @SuppressWarnings("nls")
-    public void reportCrash(final CrashData crash, final boolean ownThread) {
+    public void reportCrash(@Nonnull final CrashData crash, final boolean ownThread) {
         if (ownThread) {
             new Thread(new Runnable() {
                 @Override
@@ -221,6 +228,15 @@ public final class CrashReporter {
                     reportCrash(crash, false);
                 }
             }).start();
+        }
+
+        if ("NoClassDefFoundError".equals(crash.getExceptionName())) {
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                new File(DirectoryManager.getInstance().getDataDirectory(), "corrupted").createNewFile();
+            } catch (@Nonnull final IOException e) {
+                LOGGER.error("Failed to mark data as corrupted.");
+            }
         }
 
         waitForReport();
@@ -295,7 +311,7 @@ public final class CrashReporter {
      *
      * @param config the new configuration
      */
-    public void setConfig(final Config config) {
+    public void setConfig(@Nullable final Config config) {
         cfg = config;
         if (config != null) {
             setMode(config.getInteger(CFG_KEY));
@@ -343,12 +359,16 @@ public final class CrashReporter {
             while (dialog != null) {
                 try {
                     this.wait(100);
-                } catch (final InterruptedException e) {
+                } catch (@Nonnull final InterruptedException e) {
                     LOGGER.debug("Wait for report was interrupted!", e); //$NON-NLS-1$
                 }
             }
         }
     }
+
+    private static final long REPRODUCIBILITY_NA_NUM = 100;
+    private static final long SEVERITY_CRASH_NUM = 70;
+    private static final long PRIORITY_HIGH_NUM = 40;
 
     /**
      * Send the data of the crash to the Illarion server.
@@ -356,67 +376,50 @@ public final class CrashReporter {
      * @param data the data that was collected about the crash
      */
     @SuppressWarnings("nls")
-    private void sendCrashData(final CrashData data) {
+    private static void sendCrashData(@Nonnull final CrashData data) {
         if (CRASH_SERVER == null) {
             return;
         }
 
-        Writer output = null;
-        Reader in = null;
         try {
-            final HttpURLConnection conn =
-                    (HttpURLConnection) CRASH_SERVER.openConnection();
-            conn.setDoOutput(true);
-            conn.setDoInput(true);
-            final TextBuilder queryBuilder = TextBuilder.newInstance();
-            queryBuilder.append("os=").append(
-                    URLEncoder.encode(CrashData.getOSName(), CHARSET));
-            queryBuilder.append("&app=").append(
-                    URLEncoder.encode(data.getApplicationName(), CHARSET));
-            queryBuilder.append("&version=").append(
-                    URLEncoder.encode(data.getApplicationVersion(), CHARSET));
-            queryBuilder.append("&thread=").append(
-                    URLEncoder.encode(data.getThreadName(), CHARSET));
-            queryBuilder.append("&exception=").append(
-                    URLEncoder.encode(data.getExceptionName(), CHARSET));
-            queryBuilder.append("&stack=").append(
-                    URLEncoder.encode(data.getStackBacktrace(), CHARSET));
-            final String query = queryBuilder.toString();
-            TextBuilder.recycle(queryBuilder);
-
-            output = new OutputStreamWriter(conn.getOutputStream());
-
-            output.write(query);
-            output.flush();
-
-            in =
-                    new BufferedReader(
-                            new InputStreamReader(conn.getInputStream()));
-
-            String line;
-            while ((line = ((BufferedReader) in).readLine()) != null) {
-                LOGGER.info(line);
-            }
-        } catch (final MalformedURLException ex) {
-            LOGGER.error("Target URL for the transfer target was malformed",
-                    ex);
-        } catch (final IOException ex) {
-            LOGGER.error("Sending the crash report failed", ex);
-        } finally {
-            if (output != null) {
-                try {
-                    output.close();
-                } catch (final IOException e1) {
-                    LOGGER.error("Failed closing the output stream", e1);
+            final IMCSession mantisSession = new MCSession(CRASH_SERVER, "Java Reporting System",
+                    "dA23MvKT1KDm4k0bQmMS");
+            final IProject[] projects = mantisSession.getAccessibleProjects();
+            IProject bugReportProject = null;
+            for (final IProject project : projects) {
+                if (project.getName().equalsIgnoreCase("Bug reports")) {
+                    bugReportProject = project;
+                    break;
                 }
             }
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (final IOException e1) {
-                    LOGGER.error("Failed closing the input stream", e1);
-                }
+            if (bugReportProject == null) {
+                LOGGER.error("Failed to find bug reports project.");
+                return;
             }
+
+            final IProject selectedProject = bugReportProject.getSubProject(data.getApplicationName());
+            if (selectedProject == null) {
+                LOGGER.error("Failed to find " + data.getApplicationName() + " project.");
+                return;
+            }
+
+            final IIssue issue = mantisSession.newIssue(selectedProject.getId());
+            issue.setCategory("Automatic");
+            issue.setSummary(data.getExceptionName() + " in Thread " + data.getThreadName());
+            issue.setDescription("Thread: " + data.getThreadName() + "\nException: " + data.getExceptionName() +
+                    "\nBacktrace:\n" + data.getStackBacktrace() + "\nDescription: " + data.getDescription());
+            issue.setVersion(data.getApplicationVersion());
+            issue.setOs(System.getProperty("os.name"));
+            issue.setOsBuild(System.getProperty("os.version"));
+            issue.setReproducibility(new MCAttribute(REPRODUCIBILITY_NA_NUM, null));
+            issue.setSeverity(new MCAttribute(SEVERITY_CRASH_NUM, null));
+            issue.setPriority(new MCAttribute(PRIORITY_HIGH_NUM, null));
+            issue.setPrivate(false);
+
+            final long id = mantisSession.addIssue(issue);
+            LOGGER.info("Added new Issue #" + id);
+        } catch (MCException e) {
+            LOGGER.error("Failed to send error reporting data.", e);
         }
     }
 
@@ -428,15 +431,13 @@ public final class CrashReporter {
      * @param newMode the new mode value
      * @throws IllegalArgumentException in case the invalid mode value is chosen
      */
-    private void setMode(final int newMode) {
+    public void setMode(final int newMode) {
         if ((newMode != MODE_ALWAYS) && (newMode != MODE_ASK)
                 && (newMode != MODE_NEVER)) {
             mode = MODE_ASK;
-            cfg.set(CFG_KEY, MODE_ASK);
             return;
         }
 
         mode = newMode;
-        cfg.set(CFG_KEY, newMode);
     }
 }

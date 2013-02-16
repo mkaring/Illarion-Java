@@ -25,6 +25,7 @@ import illarion.common.graphics.LightTracer;
 import illarion.common.net.NetCommReader;
 import illarion.common.types.Location;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
@@ -34,8 +35,7 @@ import java.io.IOException;
  * @author Nop
  */
 @ReplyMessage(replyId = CommandList.MSG_LOCATION)
-public final class LocationMsg
-        extends AbstractReply {
+public final class LocationMsg extends AbstractReply {
     /**
      * The location of the player.
      */
@@ -48,7 +48,7 @@ public final class LocationMsg
      * @throws IOException thrown in case there was not enough data received to decode the full message
      */
     @Override
-    public void decode(final NetCommReader reader)
+    public void decode(@Nonnull final NetCommReader reader)
             throws IOException {
         loc = decodeLocation(reader);
     }
@@ -65,6 +65,9 @@ public final class LocationMsg
         // drop the whole map and expect update
         World.getMap().clear();
 
+        // stop the attack in case there is any
+        World.getPlayer().getCombatHandler().standDown();
+
         // logical location
         World.getPlayer().setLocation(loc);
         // graphics location
@@ -76,16 +79,7 @@ public final class LocationMsg
 
         World.getPlayer().getCharacter().relistLight();
         World.getPlayer().getCharacter().updateLight(loc);
-
         return true;
-    }
-
-    /**
-     * Wait with processing this command until the game factory and the player is load for sure.
-     */
-    @Override
-    public boolean processNow() {
-        return World.getPlayer() != null;
     }
 
     /**
@@ -93,10 +87,10 @@ public final class LocationMsg
      *
      * @return the string that contains the values that were decoded for this message
      */
+    @Nonnull
     @SuppressWarnings("nls")
     @Override
     public String toString() {
         return toString("to " + loc.toString());
     }
-
 }

@@ -18,11 +18,14 @@
  */
 package illarion.client.util;
 
-import illarion.common.config.Config;
-import illarion.common.config.ConfigChangeListener;
+import illarion.common.config.ConfigChangedEvent;
 import illarion.common.util.MessageSource;
 import org.apache.log4j.Logger;
+import org.bushe.swing.event.annotation.AnnotationProcessor;
+import org.bushe.swing.event.annotation.EventTopicSubscriber;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
@@ -35,7 +38,7 @@ import java.util.ResourceBundle;
  * @author Nop
  */
 @SuppressWarnings("nls")
-public final class Lang implements ConfigChangeListener, MessageSource {
+public final class Lang implements MessageSource {
     /**
      * The string that is the key of the language settings in the configuration
      * file.
@@ -68,11 +71,6 @@ public final class Lang implements ConfigChangeListener, MessageSource {
     private static final String MESSAGE_BUNDLE = "messages";
 
     /**
-     * The configuration that stores the language settings.
-     */
-    private Config cfg;
-
-    /**
      * The current local settings.
      */
     private Locale locale;
@@ -90,6 +88,7 @@ public final class Lang implements ConfigChangeListener, MessageSource {
         locale = Locale.ENGLISH;
 
         messages = ResourceBundle.getBundle(MESSAGE_BUNDLE, locale, Thread.currentThread().getContextClassLoader());
+        AnnotationProcessor.process(this);
     }
 
     /**
@@ -97,6 +96,7 @@ public final class Lang implements ConfigChangeListener, MessageSource {
      *
      * @return the instance of the class
      */
+    @Nonnull
     public static Lang getInstance() {
         return INSTANCE;
     }
@@ -112,15 +112,9 @@ public final class Lang implements ConfigChangeListener, MessageSource {
         return INSTANCE.getMessage(key);
     }
 
-    /**
-     * Listener method for changes of the configuration. It triggers a check of
-     * of the locale in case this setting in the configuration got changed.
-     */
-    @Override
-    public void configChanged(final Config config, final String key) {
-        if (key.equals(LOCALE_CFG)) {
-            recheckLocale();
-        }
+    @EventTopicSubscriber(topic = LOCALE_CFG)
+    public void onConfigChanged(final String topic, @Nonnull final ConfigChangedEvent event) {
+        recheckLocale(event.getConfig().getString(LOCALE_CFG));
     }
 
     /**
@@ -143,7 +137,7 @@ public final class Lang implements ConfigChangeListener, MessageSource {
     public String getMessage(final String key) {
         try {
             return messages.getString(key).replace("\\n", "\n");
-        } catch (final MissingResourceException e) {
+        } catch (@Nonnull final MissingResourceException e) {
             LOGGER.warn("Failed searching translated version of: " + key);
             return "<" + key + ">";
         }
@@ -158,7 +152,7 @@ public final class Lang implements ConfigChangeListener, MessageSource {
     public boolean hasMsg(final String key) {
         try {
             messages.getString(key);
-        } catch (final MissingResourceException e) {
+        } catch (@Nonnull final MissingResourceException e) {
             return false;
         }
         return true;
@@ -170,7 +164,7 @@ public final class Lang implements ConfigChangeListener, MessageSource {
      * @return true if the language is set to English
      */
     public boolean isEnglish() {
-        return (locale == Locale.ENGLISH);
+        return locale == Locale.ENGLISH;
     }
 
     /**
@@ -179,20 +173,14 @@ public final class Lang implements ConfigChangeListener, MessageSource {
      * @return true if the language is set to German
      */
     public boolean isGerman() {
-        return (locale == Locale.GERMAN);
+        return locale == Locale.GERMAN;
     }
 
     /**
-     * Check if the language settings are still correct and reload the messages
-     * if needed.
+     * Check if the language settings are still correct and reload the messages if needed.
      */
-    public void recheckLocale() {
-        if (cfg == null) {
-            return;
-        }
-
-        final String localeSettings = cfg.getString(LOCALE_CFG);
-        if (localeSettings.equals(LOCALE_CFG_GERMAN)) {
+    public void recheckLocale(@Nullable final String key) {
+        if (LOCALE_CFG_GERMAN.equals(key)) {
             if (locale == Locale.GERMAN) {
                 return;
             }
@@ -204,23 +192,6 @@ public final class Lang implements ConfigChangeListener, MessageSource {
             locale = Locale.ENGLISH;
         }
 
-        messages =
-                ResourceBundle.getBundle(MESSAGE_BUNDLE, locale,
-                        Lang.class.getClassLoader());
-    }
-
-    /**
-     * Set the configuration that stores the locale settings.
-     *
-     * @param newConfig the configuration to be used from now on
-     */
-    public void setConfig(final Config newConfig) {
-        if (cfg != null) {
-            cfg.removeListener(LOCALE_CFG, this);
-        }
-
-        cfg = newConfig;
-        cfg.addListener(LOCALE_CFG, this);
-        recheckLocale();
+        messages = ResourceBundle.getBundle(MESSAGE_BUNDLE, locale, Lang.class.getClassLoader());
     }
 }

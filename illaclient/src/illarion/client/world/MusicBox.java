@@ -23,10 +23,15 @@ import illarion.client.resources.SongFactory;
 import illarion.common.config.ConfigChangedEvent;
 import illarion.common.util.Stoppable;
 import illarion.common.util.StoppableStorage;
+import org.apache.log4j.Logger;
 import org.bushe.swing.event.annotation.AnnotationProcessor;
 import org.bushe.swing.event.annotation.EventTopicPatternSubscriber;
 import org.newdawn.slick.Music;
 import org.newdawn.slick.openal.SoundStore;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * This is the music box. What is does is playing music. This class handles the playback of the background music
@@ -35,6 +40,7 @@ import org.newdawn.slick.openal.SoundStore;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@NotThreadSafe
 public final class MusicBox implements Stoppable {
     /**
      * The ID of the combat music.
@@ -55,6 +61,7 @@ public final class MusicBox implements Stoppable {
     /**
      * The music that is currently played.
      */
+    @Nullable
     private Music currentMusic;
 
     /**
@@ -74,7 +81,14 @@ public final class MusicBox implements Stoppable {
      */
     private int overrideSoundId;
 
+    /**
+     * This flag is {@code true} in case the music is activated.
+     */
     private boolean musicEnabled;
+
+    /**
+     * This variables stores the music volume the player selected between {@code 0.f} and {@code 1.f}
+     */
     private float musicVolume;
 
     /**
@@ -94,7 +108,7 @@ public final class MusicBox implements Stoppable {
     }
 
     @EventTopicPatternSubscriber(topicPattern = "music.*")
-    public void onUpdateConfig(final String topic, final ConfigChangedEvent data) {
+    public void onUpdateConfig(@Nonnull final String topic, @Nonnull final ConfigChangedEvent data) {
         if ("musicOn".equals(topic)) {
             musicEnabled = IllaClient.getCfg().getBoolean("musicOn");
             SoundStore.get().setMusicOn(musicEnabled);
@@ -103,10 +117,6 @@ public final class MusicBox implements Stoppable {
             SoundStore.get().setMusicVolume(musicVolume);
             SoundStore.get().setCurrentMusicVolume(musicVolume);
         }
-    }
-
-    public boolean isPlaying(final int musicId) {
-        return overrideSoundId != musicId;
     }
 
     /**
@@ -167,8 +177,17 @@ public final class MusicBox implements Stoppable {
         }
 
         currentMusic = SongFactory.getInstance().getSong(id);
+        if (currentMusic == null) {
+            LOGGER.error("Requested music was not found: " + id);
+            return;
+        }
         currentMusic.loop(1.f, musicVolume);
     }
+
+    /**
+     * The logging instance that takes care for the logging output of this class.
+     */
+    private static final Logger LOGGER = Logger.getLogger(MusicBox.class);
 
     /**
      * Stop playing the fighting music and fall back to the last sound track played.
@@ -200,10 +219,8 @@ public final class MusicBox implements Stoppable {
     /**
      * This handler is called during the update loop and should be used to change the currently played music to make
      * sure that changing the music is in sync with the rest of the game.
-     *
-     * @param delta the time in milliseconds since the last update
      */
-    public void update(final int delta) {
+    public void update() {
         if (fightingMusicPlaying) {
             setSoundTrack(COMBAT_TRACK);
         } else if (overrideSoundId > NO_TRACK) {

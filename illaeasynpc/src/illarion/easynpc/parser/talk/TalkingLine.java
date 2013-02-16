@@ -27,6 +27,8 @@ import illarion.easynpc.parsed.talk.TalkCondition;
 import illarion.easynpc.parsed.talk.TalkConsequence;
 import org.fife.ui.rsyntaxtextarea.TokenMap;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,21 +50,25 @@ public final class TalkingLine {
     /**
      * The documentation entry for the conditions.
      */
+    @Nonnull
     private final DocuEntry conditionDocu;
 
     /**
      * The list of condition parsers.
      */
+    @Nonnull
     private final ArrayList<ConditionParser> condPar;
 
     /**
      * The documentation entry for the consequences.
      */
+    @Nonnull
     private final DocuEntry consequenceDocu;
 
     /**
      * The list of consequence parsers.
      */
+    @Nonnull
     private final ArrayList<ConsequenceParser> consPar;
 
     /**
@@ -85,11 +91,12 @@ public final class TalkingLine {
         condPar.add(new illarion.easynpc.parser.talk.conditions.Language());
         condPar.add(new illarion.easynpc.parser.talk.conditions.Chance());
         condPar.add(new illarion.easynpc.parser.talk.conditions.Town());
-        condPar.add(new illarion.easynpc.parser.talk.conditions.Number());
-        condPar.add(new illarion.easynpc.parser.talk.conditions.Talkstate());
+        condPar.add(new illarion.easynpc.parser.talk.conditions.TalkMode());
         condPar.add(new illarion.easynpc.parser.talk.conditions.Sex());
-        condPar.add(new illarion.easynpc.parser.talk.conditions.Admin());
         condPar.add(new illarion.easynpc.parser.talk.conditions.Trigger());
+        condPar.add(new illarion.easynpc.parser.talk.conditions.Admin());
+        condPar.add(new illarion.easynpc.parser.talk.conditions.Talkstate());
+        condPar.add(new illarion.easynpc.parser.talk.conditions.Number());
 
         consPar.add(new illarion.easynpc.parser.talk.consequences.Inform());
         consPar.add(new illarion.easynpc.parser.talk.consequences.State());
@@ -103,12 +110,12 @@ public final class TalkingLine {
         consPar.add(new illarion.easynpc.parser.talk.consequences.Rankpoints());
         consPar.add(new illarion.easynpc.parser.talk.consequences.Talkstate());
         consPar.add(new illarion.easynpc.parser.talk.consequences.Town());
-        consPar.add(new illarion.easynpc.parser.talk.consequences.Trade());
         consPar.add(new illarion.easynpc.parser.talk.consequences.Treasure());
-        consPar.add(new illarion.easynpc.parser.talk.consequences.Introduce());
         consPar.add(new illarion.easynpc.parser.talk.consequences.Warp());
-        consPar.add(new illarion.easynpc.parser.talk.consequences.Gemcraft());
         consPar.add(new illarion.easynpc.parser.talk.consequences.Answer());
+        consPar.add(new illarion.easynpc.parser.talk.consequences.Trade());
+        consPar.add(new illarion.easynpc.parser.talk.consequences.Gemcraft());
+        consPar.add(new illarion.easynpc.parser.talk.consequences.Introduce());
 
         final List<ConditionParser> conditionsList = condPar;
         final List<ConsequenceParser> consequenceList = consPar;
@@ -135,11 +142,13 @@ public final class TalkingLine {
                         "Conditions.Docu.description");
             }
 
+            @Nullable
             @Override
             public String getExample() {
                 return null;
             }
 
+            @Nullable
             @Override
             public String getSyntax() {
                 return null;
@@ -174,11 +183,13 @@ public final class TalkingLine {
                         "Consequence.Docu.description");
             }
 
+            @Nullable
             @Override
             public String getExample() {
                 return null;
             }
 
+            @Nullable
             @Override
             public String getSyntax() {
                 return null;
@@ -198,6 +209,7 @@ public final class TalkingLine {
      *
      * @return the conditions documentation entry
      */
+    @Nullable
     public DocuEntry getConditionDocuEntry() {
         return conditionDocu;
     }
@@ -207,6 +219,7 @@ public final class TalkingLine {
      *
      * @return the consequences documentation entry
      */
+    @Nullable
     public DocuEntry getConsequenceDocuEntry() {
         return consequenceDocu;
     }
@@ -218,7 +231,7 @@ public final class TalkingLine {
      * @param npc  the npc that receives the data parsed here
      */
     @SuppressWarnings("nls")
-    public void parseLine(final EasyNpcScript.Line line, final ParsedNpc npc) {
+    public void parseLine(@Nonnull final EasyNpcScript.Line line, @Nonnull final ParsedNpc npc) {
         final String[] workingLines = line.getLine().split(SPLIT_STRING);
 
         if (workingLines.length != 2) {
