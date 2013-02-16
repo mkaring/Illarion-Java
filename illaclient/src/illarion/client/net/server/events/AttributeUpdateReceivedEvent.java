@@ -18,7 +18,7 @@
  */
 package illarion.client.net.server.events;
 
-import illarion.client.world.characters.CharacterAttribute;
+import illarion.common.data.CharacterAttribute;
 import illarion.common.types.CharacterId;
 
 /**

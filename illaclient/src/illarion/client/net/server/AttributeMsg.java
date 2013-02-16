@@ -21,7 +21,7 @@ package illarion.client.net.server;
 import illarion.client.net.CommandList;
 import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.net.server.events.AttributeUpdateReceivedEvent;
-import illarion.client.world.characters.CharacterAttribute;
+import illarion.common.data.CharacterAttribute;
 import illarion.common.net.NetCommReader;
 import illarion.common.types.CharacterId;
 import org.bushe.swing.event.EventBus;

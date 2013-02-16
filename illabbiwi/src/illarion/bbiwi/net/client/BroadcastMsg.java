@@ -21,12 +21,14 @@ package illarion.bbiwi.net.client;
 import illarion.common.net.NetCommWriter;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.Immutable;
 
 /**
  * This command is used to send a broadcast to all players in the game.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@Immutable
 public final class BroadcastMsg extends AbstractCommand {
     /**
      * The message that is broadcast.

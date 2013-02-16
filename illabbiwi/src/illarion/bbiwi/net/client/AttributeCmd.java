@@ -18,6 +18,7 @@
  */
 package illarion.bbiwi.net.client;
 
+import illarion.common.data.CharacterAttribute;
 import illarion.common.net.NetCommWriter;
 import illarion.common.types.CharacterId;
 
@@ -25,12 +26,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 
 /**
- * This command is used to issue a ban against a character.
- *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
 @Immutable
-public final class BanCharCmd extends AbstractCommand {
+public final class AttributeCmd extends AbstractCommand {
     /**
      * The character id of the character that is supposed to be banned.
      */
@@ -46,34 +45,49 @@ public final class BanCharCmd extends AbstractCommand {
     private final String charName;
 
     /**
-     * The time in seconds this character is supposed to remain banned.
+     * The attribute that is supposed to be changed.
      */
-    private final long time;
+    @Nonnull
+    private final CharacterAttribute attribute;
 
     /**
-     * Create a new instance of this ban command.
-     *
-     * @param charId   the ID of the character to ban
-     * @param charName the name of the character to ban
-     * @param time     the time in seconds to ban this character
+     * The new value of the attribute.
      */
-    public BanCharCmd(@Nonnull final CharacterId charId, @Nonnull final String charName, final long time) {
-        super(0x04);
+    private final int value;
+
+    /**
+     * Create a new attribute command.
+     *
+     * @param charId    the ID of the character that is supposed to be changed
+     * @param charName  the name of the character that is supposed to be changed
+     * @param attribute the attribute that is supposed to be changed
+     * @param value     the new value of the attribute
+     */
+    public AttributeCmd(@Nonnull final CharacterId charId, @Nonnull final String charName,
+                        @Nonnull final CharacterAttribute attribute, final int value) {
+        super(0x06);
         this.charId = charId;
         this.charName = charName;
-        this.time = time;
+        this.attribute = attribute;
+        this.value = value;
     }
 
     @Nonnull
     @Override
     public String toString() {
-        return toString(charId + " Name: " + charName + " Time: " + time);
+        return toString(charId + " Name: " + charName + " Attribute: " + attribute.name() + " Value: " + value);
     }
 
+    /**
+     * Encode data for transfer to server. Only for send commands.
+     *
+     * @param writer the byte buffer the values are added to from index 0 on
+     */
     @Override
     public void encode(@Nonnull final NetCommWriter writer) {
         charId.encode(writer);
         writer.writeString(charName);
-        writer.writeUInt(time);
+        writer.writeString(attribute.getServerName());
+        writer.writeUShort(value);
     }
 }

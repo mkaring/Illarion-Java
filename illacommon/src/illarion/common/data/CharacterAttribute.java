@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with the Illarion Client.  If not, see <http://www.gnu.org/licenses/>.
  */
-package illarion.client.world.characters;
+package illarion.common.data;
 
 import javax.annotation.Nonnull;
 
