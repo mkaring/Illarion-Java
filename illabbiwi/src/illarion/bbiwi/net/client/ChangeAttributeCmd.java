@@ -26,10 +26,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 
 /**
+ * This command is used to change the attribute of a single character.
+ *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
 @Immutable
-public final class AttributeCmd extends AbstractCommand {
+public final class ChangeAttributeCmd extends AbstractCommand {
     /**
      * The character id of the character that is supposed to be banned.
      */
@@ -63,8 +65,8 @@ public final class AttributeCmd extends AbstractCommand {
      * @param attribute the attribute that is supposed to be changed
      * @param value     the new value of the attribute
      */
-    public AttributeCmd(@Nonnull final CharacterId charId, @Nonnull final String charName,
-                        @Nonnull final CharacterAttribute attribute, final int value) {
+    public ChangeAttributeCmd(@Nonnull final CharacterId charId, @Nonnull final String charName,
+                              @Nonnull final CharacterAttribute attribute, final int value) {
         super(0x06);
         this.charId = charId;
         this.charName = charName;
@@ -78,11 +80,6 @@ public final class AttributeCmd extends AbstractCommand {
         return toString(charId + " Name: " + charName + " Attribute: " + attribute.name() + " Value: " + value);
     }
 
-    /**
-     * Encode data for transfer to server. Only for send commands.
-     *
-     * @param writer the byte buffer the values are added to from index 0 on
-     */
     @Override
     public void encode(@Nonnull final NetCommWriter writer) {
         charId.encode(writer);
