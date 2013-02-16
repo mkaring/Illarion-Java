@@ -20,25 +20,26 @@ package illarion.bbiwi.net.client;
 
 import illarion.common.net.NetCommWriter;
 import illarion.common.types.CharacterId;
+import illarion.common.types.Location;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 
 /**
- * This command is used to request a update of the skill values for one character.
+ * This command is used to warp a player to a new location.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
 @Immutable
-public final class RequestSkillsCmd extends AbstractCommand {
+public final class WarpCmd extends AbstractCommand {
     /**
-     * The character id of the character that requires the skill update.
+     * The character id of the character that is supposed to be warped.
      */
     @Nonnull
     private final CharacterId charId;
 
     /**
-     * The name of the character that requires the skill update.
+     * The name of the character that is supposed to be warped.
      * <p/>
      * TODO: Find out what one needs to smoke to come up with the idea to identify the character by ID and name.
      */
@@ -46,26 +47,36 @@ public final class RequestSkillsCmd extends AbstractCommand {
     private final String charName;
 
     /**
-     * Create a new instance of this update skills command.
-     *
-     * @param charId   the ID of the character to update
-     * @param charName the name of the character to update
+     * The location the character is supposed to be warped to.
      */
-    public RequestSkillsCmd(@Nonnull final CharacterId charId, @Nonnull final String charName) {
-        super(0x0C);
+    @Nonnull
+    private final Location targetLocation;
+
+    /**
+     * Create a new instance of this warp command.
+     *
+     * @param charId   the ID of the character to receive the message
+     * @param charName the name of the character to receive the message
+     * @param location the location the character is warped to
+     */
+    public WarpCmd(@Nonnull final CharacterId charId, @Nonnull final String charName,
+                   @Nonnull final Location location) {
+        super(0x09);
         this.charId = charId;
         this.charName = charName;
+        targetLocation = new Location(location);
     }
 
     @Nonnull
     @Override
     public String toString() {
-        return toString(charId + " Name: " + charName);
+        return toString(charId + " Name: " + charName + " Target" + targetLocation);
     }
 
     @Override
     public void encode(@Nonnull final NetCommWriter writer) {
         charId.encode(writer);
         writer.writeString(charName);
+        writer.writeLocation(targetLocation);
     }
 }

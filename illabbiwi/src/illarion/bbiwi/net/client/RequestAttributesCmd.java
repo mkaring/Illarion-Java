@@ -52,7 +52,7 @@ public final class RequestAttributesCmd extends AbstractCommand {
      * @param charName the name of the character to update
      */
     public RequestAttributesCmd(@Nonnull final CharacterId charId, @Nonnull final String charName) {
-        super(0x06);
+        super(0x0B);
         this.charId = charId;
         this.charName = charName;
     }
