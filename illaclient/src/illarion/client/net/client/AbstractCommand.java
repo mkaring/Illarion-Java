@@ -18,6 +18,7 @@
  */
 package illarion.client.net.client;
 
+import illarion.common.net.ClientCommand;
 import illarion.common.net.NetCommWriter;
 
 import javax.annotation.Nonnull;
@@ -33,7 +34,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 @Immutable
-public abstract class AbstractCommand {
+public abstract class AbstractCommand implements ClientCommand {
     /**
      * The ID of the command.
      */
@@ -74,6 +75,7 @@ public abstract class AbstractCommand {
      *
      * @param writer the byte buffer the values are added to from index 0 on
      */
+    @Override
     public abstract void encode(@Nonnull NetCommWriter writer);
 
     /**
@@ -81,6 +83,7 @@ public abstract class AbstractCommand {
      *
      * @return the ID of the client command that is currently set.
      */
+    @Override
     public final int getId() {
         return id;
     }

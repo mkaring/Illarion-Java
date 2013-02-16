@@ -16,13 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with the Illarion Client.  If not, see <http://www.gnu.org/licenses/>.
  */
-package illarion.client.net;
+package illarion.common.net;
 
-import illarion.client.Debug;
-import illarion.client.IllaClient;
-import illarion.client.net.server.AbstractReply;
-import illarion.client.util.Lang;
-import illarion.common.net.NetCommReader;
+import illarion.common.config.Config;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -67,6 +63,11 @@ final class Receiver extends Thread implements NetCommReader {
     private static final int RECEIVER_TIMEOUT = 1000;
 
     /**
+     * The default size of the header of each command and each message in byte.
+     */
+    private static final int HEADER_SIZE = 6;
+
+    /**
      * The buffer that stores the byte that we received from the server for decoding.
      */
     @Nonnull
@@ -94,7 +95,7 @@ final class Receiver extends Thread implements NetCommReader {
      * The list that stores the commands there were decoded and prepared for the NetComm for execution.
      */
     @Nonnull
-    private final BlockingQueue<AbstractReply> queue;
+    private final BlockingQueue<ServerReply> queue;
 
     /**
      * Indicator if the Receiver is currently running.
@@ -104,7 +105,18 @@ final class Receiver extends Thread implements NetCommReader {
     /**
      * The time until a timeout occurs.
      */
-    private long timeOut = 0;
+    private long timeOut;
+
+    /**
+     * The factory that delivers the reply objects.
+     */
+    @Nonnull
+    private final ServerReplyFactory replyFactory;
+
+    /**
+     * This flag stores if the network is currently debugged.
+     */
+    private boolean networkDebug;
 
     /**
      * The basic constructor for the receiver that sets up all needed data.
@@ -114,9 +126,15 @@ final class Receiver extends Thread implements NetCommReader {
      *                   be decoded
      */
     @SuppressWarnings("nls")
-    Receiver(@Nonnull final BlockingQueue<AbstractReply> inputQueue, @Nonnull final ReadableByteChannel in) {
+    Receiver(@Nonnull final Config cfg, @Nonnull final ServerReplyFactory replyFactory,
+             @Nonnull final BlockingQueue<ServerReply> inputQueue, @Nonnull final ReadableByteChannel in) {
         super("Illarion input thread");
 
+        this.replyFactory = replyFactory;
+
+        networkDebug = cfg.getBoolean(NetComm.CFG_DEBUG_NETWORK_KEY);
+
+        //noinspection AssignmentToCollectionOrArrayFieldFromParameter
         queue = inputQueue;
         inChannel = in;
 
@@ -131,47 +149,10 @@ final class Receiver extends Thread implements NetCommReader {
     }
 
     /**
-     * Read a single byte from the buffer and handle it as signed byte.
-     *
-     * @return The byte from the buffer handled as signed byte
-     * @throws IOException If there are more byte read then there are written in
-     *                     the buffer
-     */
-    @Override
-    public byte readByte() throws IOException {
-        return buffer.get();
-    }
-
-    /**
-     * Read four bytes from the buffer and handle them as a single signed value.
-     *
-     * @return The two bytes in the buffer handled as signed 4 byte value
-     * @throws IOException If there are more byte read then there are written in
-     *                     the buffer
-     */
-    @Override
-    public int readInt() throws IOException {
-        return buffer.getInt();
-    }
-
-    /**
-     * Read two bytes from the buffer and handle them as a single signed value.
-     *
-     * @return The two bytes in the buffer handled as signed 2 byte value
-     * @throws IOException If there are more byte read then there are written in
-     *                     the buffer
-     */
-    @Override
-    public short readShort() throws IOException {
-        return buffer.getShort();
-    }
-
-    /**
      * Read a string from the input buffer and encode it for further usage.
      *
      * @return the decoded string
-     * @throws IOException If there are more byte read then there are written in
-     *                     the buffer
+     * @throws IOException If there are more byte read then there are written in the buffer
      */
     @Nonnull
     @Override
@@ -184,8 +165,7 @@ final class Receiver extends Thread implements NetCommReader {
         }
 
         if (len > buffer.remaining()) {
-            throw new IndexOutOfBoundsException(
-                    "reading beyond receive buffer " + (buffer.remaining() + len));
+            throw new IndexOutOfBoundsException("reading beyond receive buffer " + (buffer.remaining() + len));
         }
         decodingBuffer.clear();
         final int lastLimit = buffer.limit();
@@ -198,45 +178,10 @@ final class Receiver extends Thread implements NetCommReader {
     }
 
     /**
-     * Read a single byte from the buffer and handle it as unsigned byte.
-     *
-     * @return The byte of the buffer handled as unsigned byte.
-     * @throws IOException If there are more byte read then there are written in
-     *                     the buffer
-     */
-    @Override
-    public short readUByte() throws IOException {
-        final short data = readByte();
-        if (data < 0) {
-            return (short) (data + (1 << Byte.SIZE));
-        }
-        return data;
-    }
-
-    /**
-     * Read four bytes from the buffer and handle them as a single unsigned
-     * value.
-     *
-     * @return The two bytes in the buffer handled as unsigned 4 byte value
-     * @throws IOException If there are more byte read then there are written in
-     *                     the buffer
-     */
-    @Override
-    public long readUInt() throws IOException {
-        final long data = readInt();
-        if (data < 0) {
-            return data + (1L << Integer.SIZE);
-        }
-        return data;
-    }
-
-    /**
-     * Read two bytes from the buffer and handle them as a single unsigned
-     * value.
+     * Read two bytes from the buffer and handle them as a single unsigned value.
      *
      * @return The two bytes in the buffer handled as unsigned 2 byte value
-     * @throws IOException If there are more byte read then there are written in
-     *                     the buffer
+     * @throws IOException If there are more byte read then there are written in the buffer
      */
     @Override
     public int readUShort() throws IOException {
@@ -248,28 +193,61 @@ final class Receiver extends Thread implements NetCommReader {
     }
 
     /**
-     * The main loop the the receiver thread. Decodes the data of the input
-     * stream and places the server messages in the queue.
+     * Read two bytes from the buffer and handle them as a single signed value.
+     *
+     * @return The two bytes in the buffer handled as signed 2 byte value
+     * @throws IOException If there are more byte read then there are written in the buffer
+     */
+    @Override
+    public short readShort() throws IOException {
+        return buffer.getShort();
+    }
+
+    /**
+     * Read four bytes from the buffer and handle them as a single unsigned value.
+     *
+     * @return The two bytes in the buffer handled as unsigned 4 byte value
+     * @throws IOException If there are more byte read then there are written in the buffer
+     */
+    @Override
+    public long readUInt() throws IOException {
+        final long data = readInt();
+        if (data < 0) {
+            return data + (1L << Integer.SIZE);
+        }
+        return data;
+    }
+
+    /**
+     * Read four bytes from the buffer and handle them as a single signed value.
+     *
+     * @return The two bytes in the buffer handled as signed 4 byte value
+     * @throws IOException If there are more byte read then there are written in the buffer
+     */
+    @Override
+    public int readInt() throws IOException {
+        return buffer.getInt();
+    }
+
+    /**
+     * The main loop the the receiver thread. Decodes the data of the input stream and places the server messages in
+     * the queue.
      * <p>
-     * The decoding of the data happens as instantly as soon as a command is
-     * completely read from the input stream. Searching the start of a command
-     * is done by looking for a valid ID with a valid XOR id right behind.
+     * The decoding of the data happens as instantly as soon as a command is completely read from the input stream.
+     * Searching the start of a command is done by looking for a valid ID with a valid XOR id right behind.
      * </p>
      */
     @SuppressWarnings("nls")
     @Override
     public void run() {
         running = true;
-        int minRequiredData = CommandList.HEADER_SIZE;
+        int minRequiredData = HEADER_SIZE;
 
         while (running) {
             try {
                 while (running && receiveData(minRequiredData)) {
-                    while (true) {
+                    while (buffer.remaining() >= HEADER_SIZE) {
                         // wait for a complete message header
-                        if (buffer.remaining() < CommandList.HEADER_SIZE) {
-                            break;
-                        }
 
                         // identify command
                         final int id = readUByte();
@@ -294,17 +272,17 @@ final class Receiver extends Thread implements NetCommReader {
                         if (!isDataComplete(len)) {
                             // scroll the cursor back and wait for more.
                             buffer.position(0);
-                            minRequiredData = len + CommandList.HEADER_SIZE;
+                            minRequiredData = len + HEADER_SIZE;
                             break;
                         }
 
-                        minRequiredData = CommandList.HEADER_SIZE;
+                        minRequiredData = HEADER_SIZE;
 
                         // check CRC
                         if (crc != NetComm.getCRC(buffer, len)) {
                             final int oldLimit = buffer.limit();
-                            buffer.limit(len + CommandList.HEADER_SIZE);
-                            buffer.position(CommandList.HEADER_SIZE);
+                            buffer.limit(len + HEADER_SIZE);
+                            buffer.position(HEADER_SIZE);
                             NetComm.dump("Invalid CRC ", buffer);
 
                             buffer.position(1);
@@ -316,11 +294,11 @@ final class Receiver extends Thread implements NetCommReader {
 
                         // decode
                         try {
-                            final AbstractReply rpl = ReplyFactory.getInstance().getReply(id);
+                            final ServerReply rpl = replyFactory.getReply(id);
                             if (rpl != null) {
                                 rpl.decode(this);
 
-                                if (IllaClient.isDebug(Debug.protocol)) {
+                                if (networkDebug) {
                                     LOGGER.debug("REC: " + rpl.toString());
                                 }
 
@@ -328,7 +306,7 @@ final class Receiver extends Thread implements NetCommReader {
                                 queue.put(rpl);
                             } else {
                                 // throw away the command that was incorrectly decoded
-                                buffer.position(len + CommandList.HEADER_SIZE);
+                                buffer.position(len + HEADER_SIZE);
                             }
                         } catch (@Nonnull final IllegalArgumentException ex) {
                             LOGGER.error("Invalid command id received " + Integer.toHexString(id));
@@ -341,14 +319,12 @@ final class Receiver extends Thread implements NetCommReader {
             } catch (@Nonnull final IOException e) {
                 if (running) {
                     LOGGER.fatal("The connection to the server is not working anymore.", e);
-                    IllaClient.fallbackToLogin(Lang.getMsg("error.receiver"));
                     running = false;
                     return;
                 }
             } catch (@Nonnull final Exception e) {
                 if (running) {
                     LOGGER.fatal("General error in the receiver", e);
-                    IllaClient.fallbackToLogin(Lang.getMsg("error.receiver"));
                     running = false;
                     return;
                 }
@@ -356,21 +332,80 @@ final class Receiver extends Thread implements NetCommReader {
         }
     }
 
+    /**
+     * Read data from the input stream of the socket and store it in the buffer.
+     *
+     * @param neededDataInBuffer The data that is needed at least before the method has to return in order to parse
+     *                           the values correctly
+     * @return {@code true} in case there is any data to be decoded in the buffer
+     * @throws IOException In case there is something wrong with the input stream
+     */
+    @SuppressWarnings({"nls", "BooleanMethodNameMustStartWithQuestion"})
+    private boolean receiveData(final int neededDataInBuffer) throws IOException {
+        int data = buffer.remaining();
+
+        final int appPos = buffer.limit();
+        buffer.clear();
+        buffer.position(appPos);
+
+        int newData = 0;
+        while (true) {
+            if (inChannel.isOpen()) {
+                newData = inChannel.read(buffer);
+            }
+            data += newData;
+            if (data >= neededDataInBuffer) {
+                break;
+            }
+            try {
+                Thread.sleep(2);
+            } catch (@Nonnull final InterruptedException e) {
+                LOGGER.warn("Interrupted wait time for new data");
+            }
+        }
+
+        buffer.flip();
+
+        if ((newData > 0) && networkDebug) {
+            buffer.position(appPos);
+            NetComm.dump("rcv <= ", buffer);
+            buffer.position(0);
+        }
+
+        return buffer.hasRemaining();
+    }
 
     /**
-     * Shutdown the receiver.
+     * Read a single byte from the buffer and handle it as unsigned byte.
+     *
+     * @return The byte of the buffer handled as unsigned byte.
+     * @throws IOException If there are more byte read then there are written in the buffer
      */
-    public void saveShutdown() {
-        LOGGER.info(getName() + ": Shutdown requested!");
-        running = false;
-        interrupt();
+    @Override
+    public short readUByte() throws IOException {
+        final short data = readByte();
+        if (data < 0) {
+            return (short) (data + (1 << Byte.SIZE));
+        }
+        return data;
+    }
+
+    /**
+     * Read a single byte from the buffer and handle it as signed byte.
+     *
+     * @return The byte from the buffer handled as signed byte
+     * @throws IOException If there are more byte read then there are written in the buffer
+     */
+    @Override
+    public byte readByte() throws IOException {
+        return buffer.get();
     }
 
     /**
      * This function checks of the received data contains a complete command.
      *
      * @param len the amount of bytes that were received for that command
-     * @return true in case the command is complete, false if not
+     * @return {@code true} in case the command is complete, {@code false} if not
      */
     @SuppressWarnings("nls")
     private boolean isDataComplete(final int len) {
@@ -397,48 +432,11 @@ final class Receiver extends Thread implements NetCommReader {
     }
 
     /**
-     * Read data from the input stream of the socket and store it in the buffer.
-     *
-     * @param neededDataInBuffer The data that is needed at least before the method has to return in order to parse
-     *                           the values correctly
-     * @return true in case there is any data to be decoded in the buffer
-     * @throws IOException In case there is something wrong with the input stream
+     * Shutdown the receiver.
      */
-    @SuppressWarnings("nls")
-    private boolean receiveData(final int neededDataInBuffer)
-            throws IOException {
-
-        int data = buffer.remaining();
-
-        final int appPos = buffer.limit();
-        buffer.clear();
-        buffer.position(appPos);
-
-        int newData = 0;
-        while (true) {
-            if (inChannel.isOpen()) {
-                newData = inChannel.read(buffer);
-            }
-            data += newData;
-            if (data >= neededDataInBuffer) {
-                break;
-            }
-            try {
-                Thread.sleep(2);
-            } catch (@Nonnull final InterruptedException e) {
-                LOGGER.warn("Interrupted wait time for new data");
-            }
-        }
-
-        buffer.flip();
-
-        if ((newData > 0) && IllaClient.isDebug(Debug.net)) {
-            buffer.position(appPos);
-            NetComm.dump("rcv <= ", buffer);
-            buffer.position(0);
-        }
-
-        return buffer.hasRemaining();
+    public void saveShutdown() {
+        LOGGER.info(getName() + ": Shutdown requested!");
+        running = false;
+        interrupt();
     }
-
 }

@@ -16,16 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with the Illarion Client.  If not, see <http://www.gnu.org/licenses/>.
  */
-package illarion.client.net;
+package illarion.common.net;
 
-import illarion.client.Debug;
-import illarion.client.IllaClient;
-import illarion.client.Servers;
-import illarion.client.crash.NetCommCrashHandler;
-import illarion.client.net.client.AbstractCommand;
-import illarion.client.net.client.KeepAliveCmd;
-import illarion.client.net.server.AbstractReply;
-import illarion.client.world.World;
+import illarion.common.config.Config;
 import illarion.common.util.Timer;
 import javolution.text.TextBuilder;
 import org.apache.log4j.Logger;
@@ -44,8 +37,21 @@ import java.util.concurrent.LinkedBlockingQueue;
 /**
  * Network communication interface. All activities like sending and transmitting of messages and commands in handled
  * by this class. It handles the sockets and the in and output queues.
+ *
+ * @author Nop
+ * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@SuppressWarnings("ClassNamingConvention")
 public final class NetComm {
+    /**
+     * The configuration key that is used to store the network debugging flag.
+     */
+    public static final String CFG_DEBUG_NETWORK_KEY = "debugNetwork";
+
+    /**
+     * The configuration key that is used to store the protocol debugging flag.
+     */
+    public static final String CFG_DEBUG_PROTOCOL_KEY = "debugProtocol";
     /**
      * This constant holds the encoding for strings that are received from and send to the server.
      */
@@ -75,18 +81,6 @@ public final class NetComm {
     private static final int FIRST_PRINT_CHAR = 65;
 
     /**
-     * Delay in ms before the first render of the screen. This is needed to give the network interface some time to
-     * fetch the data.
-     */
-    private static final int INITIAL_DELAY = 500;
-
-    /**
-     * The delay in ms between two keep alive commands that are send to ensure the server that the client is still
-     * working and the connection is stable. Now set to 10 seconds.
-     */
-    private static final int KEEP_ALIVE_DELAY = 10 * 1000;
-
-    /**
      * The instance of the logger that is used to write out the data.
      */
     private static final Logger LOGGER = Logger.getLogger(NetComm.class);
@@ -100,7 +94,7 @@ public final class NetComm {
      * List of server messages that got received and decoded but were not yet executed.
      */
     @Nonnull
-    private final BlockingQueue<AbstractReply> inputQueue;
+    private final BlockingQueue<ServerReply> inputQueue;
 
     /**
      * The receiver that accepts and decodes data that was received from the server.
@@ -118,7 +112,7 @@ public final class NetComm {
      * The queue of commands that were not yet send but are planned to be send.
      */
     @Nonnull
-    private final BlockingQueue<AbstractCommand> outputQueue;
+    private final BlockingQueue<ClientCommand> outputQueue;
 
     /**
      * The sender instance that accepts all server client commands that shall be send and forwards the data to this
@@ -134,13 +128,30 @@ public final class NetComm {
     private SocketChannel socket;
 
     /**
-     * Default constructor that prepares all values of the NetComm.
+     * The used configuration handler.
      */
-    public NetComm() {
-        ReplyFactory.getInstance();
+    private final Config config;
 
-        inputQueue = new LinkedBlockingQueue<AbstractReply>();
-        outputQueue = new LinkedBlockingQueue<AbstractCommand>();
+    /**
+     * The timer that is sending the keep alive messages.
+     */
+    @Nullable
+    private Timer keepAliveTimer;
+
+    /**
+     * This value stores if the protocol debugging is active.
+     */
+    private boolean debugProtocol;
+
+    /**
+     * Default constructor that prepares all values of the NetComm.
+     *
+     * @param config the configuration handler that is supposed to be used
+     */
+    public NetComm(final Config config) {
+        inputQueue = new LinkedBlockingQueue<ServerReply>();
+        outputQueue = new LinkedBlockingQueue<ClientCommand>();
+        this.config = config;
     }
 
     /**
@@ -208,64 +219,6 @@ public final class NetComm {
     }
 
     /**
-     * Establish a connection with the server.
-     *
-     * @return true in case the connection got established. False if not.
-     */
-    @SuppressWarnings("nls")
-    public boolean connect() {
-        try {
-            final Servers usedServer = IllaClient.getInstance().getUsedServer();
-
-            final InetSocketAddress address = new InetSocketAddress(usedServer.getServerHost(),
-                    usedServer.getServerPort());
-            socket = SelectorProvider.provider().openSocketChannel();
-            socket.configureBlocking(true);
-            socket.socket().setPerformancePreferences(0, 2, 1);
-
-            if (!socket.connect(address)) {
-                while (socket.isConnectionPending()) {
-                    socket.finishConnect();
-                    try {
-                        Thread.sleep(1);
-                    } catch (@Nonnull final InterruptedException e) {
-                        LOGGER.warn("Waiting time for connection finished got interrupted");
-                    }
-                }
-            }
-
-            sender = new Sender(outputQueue, socket);
-            sender.setUncaughtExceptionHandler(NetCommCrashHandler.getInstance());
-            inputThread = new Receiver(inputQueue, socket);
-            inputThread.setUncaughtExceptionHandler(NetCommCrashHandler.getInstance());
-            messageHandler = new MessageExecutor(inputQueue);
-            messageHandler.setUncaughtExceptionHandler(NetCommCrashHandler.getInstance());
-
-            sender.start();
-            inputThread.start();
-            messageHandler.start();
-
-            keepAliveTimer =
-                    new Timer(INITIAL_DELAY, KEEP_ALIVE_DELAY, new Runnable() {
-                        @Override
-                        public void run() {
-                            World.getNet().sendCommand(keepAliveCmd);
-                        }
-                    });
-            keepAliveTimer.setRepeats(true);
-            keepAliveTimer.start();
-        } catch (@Nonnull final IOException e) {
-            LOGGER.fatal("Connection error");
-            return false;
-        }
-        return true;
-    }
-
-    private final KeepAliveCmd keepAliveCmd = new KeepAliveCmd();
-    @Nullable
-    private Timer keepAliveTimer;
-
-    /**
      * Disconnect the client-server connection and shut the socket along with all threads for sending and receiving
      * down.
      */
@@ -313,23 +266,92 @@ public final class NetComm {
     }
 
     /**
+     * Establish a connection with the server.
+     *
+     * @param hostname     the name of the host to connect to
+     * @param port         the port to connect to
+     * @param replyFactory the factory that supplies the replies
+     * @param crashHandler the crash handler for the network threads or {@code null} in case there is none
+     * @return {@code true} in case the connection got established. False if not.
+     */
+    @SuppressWarnings({"nls", "BooleanMethodNameMustStartWithQuestion"})
+    public boolean connect(@Nonnull final String hostname, final int port,
+                           @Nonnull final ServerReplyFactory replyFactory,
+                           @Nullable final Thread.UncaughtExceptionHandler crashHandler) {
+        try {
+            final InetSocketAddress address = new InetSocketAddress(hostname, port);
+            socket = SelectorProvider.provider().openSocketChannel();
+            socket.configureBlocking(true);
+            socket.socket().setPerformancePreferences(0, 2, 1);
+
+            if (!socket.connect(address)) {
+                while (socket.isConnectionPending()) {
+                    socket.finishConnect();
+                    try {
+                        Thread.sleep(1);
+                    } catch (@Nonnull final InterruptedException e) {
+                        LOGGER.warn("Waiting time for connection finished got interrupted");
+                    }
+                }
+            }
+
+            debugProtocol = config.getBoolean(CFG_DEBUG_PROTOCOL_KEY);
+
+            sender = new Sender(config, outputQueue, socket);
+            inputThread = new Receiver(config, replyFactory, inputQueue, socket);
+            messageHandler = new MessageExecutor(config, inputQueue);
+
+            if (crashHandler != null) {
+                sender.setUncaughtExceptionHandler(crashHandler);
+                inputThread.setUncaughtExceptionHandler(crashHandler);
+                messageHandler.setUncaughtExceptionHandler(crashHandler);
+            }
+
+            sender.start();
+            inputThread.start();
+            messageHandler.start();
+        } catch (@Nonnull final IOException e) {
+            LOGGER.fatal("Connection error");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Configure the keep alive messages.
+     *
+     * @param delay        the delay between two keep alive messages
+     * @param keepAliveCmd the command that is send as keep alive
+     */
+    public void setupKeepAlive(final int delay, @Nonnull final ClientCommand keepAliveCmd) {
+        if (keepAliveTimer != null) {
+            keepAliveTimer.stop();
+        }
+        keepAliveTimer = new Timer(delay, new Runnable() {
+            @Override
+            public void run() {
+                sendCommand(keepAliveCmd);
+            }
+        });
+        keepAliveTimer.setRepeats(true);
+        keepAliveTimer.start();
+    }
+
+    /**
      * Put command in send queue so its send at the next send loop.
      *
      * @param cmd the command that shall be added to the queue
      */
     @SuppressWarnings("nls")
-    public void sendCommand(@Nonnull final AbstractCommand cmd) {
-        if (IllaClient.isDebug(Debug.protocol)) {
-            if (cmd.getId() != CommandList.CMD_KEEPALIVE) {
-                LOGGER.debug("SND: " + cmd.toString());
-            }
+    public void sendCommand(@Nonnull final ClientCommand cmd) {
+        if (debugProtocol) {
+            LOGGER.debug("SND: " + cmd.toString());
         }
 
         try {
             outputQueue.put(cmd);
         } catch (@Nonnull final InterruptedException e) {
-            LOGGER
-                    .error("Got interrupted while trying to add a command to to the queue.");
+            LOGGER.error("Got interrupted while trying to add a command to to the queue.");
         }
     }
 }

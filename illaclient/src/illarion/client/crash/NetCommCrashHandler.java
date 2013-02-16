@@ -28,15 +28,13 @@ import javax.annotation.Nonnull;
  */
 public final class NetCommCrashHandler extends AbstractCrashHandler {
     /**
-     * The singleton instance of this crash handler to avoid to many instances
-     * of this one.
+     * The singleton instance of this crash handler to avoid to many instances of this one.
      */
     private static final NetCommCrashHandler INSTANCE =
             new NetCommCrashHandler();
 
     /**
-     * The private constructor that is used to avoid the creation of any other
-     * instances but the singleton instance.
+     * The private constructor that is used to avoid the creation of any other instances but the singleton instance.
      */
     private NetCommCrashHandler() {
         super();

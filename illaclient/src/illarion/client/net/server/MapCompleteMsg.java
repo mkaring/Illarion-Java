@@ -46,7 +46,7 @@ public final class MapCompleteMsg extends AbstractReply {
      *                     decode the full message
      */
     @Override
-    public void decode(final NetCommReader reader) throws IOException {
+    public void decode(@Nonnull final NetCommReader reader) throws IOException {
         // nothing to decode
     }
 

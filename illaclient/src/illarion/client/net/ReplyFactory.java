@@ -20,6 +20,7 @@ package illarion.client.net;
 
 import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.net.server.*;
+import illarion.common.net.ServerReplyFactory;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -33,7 +34,7 @@ import java.util.Map;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class ReplyFactory {
+public final class ReplyFactory implements ServerReplyFactory {
     /**
      * The singleton instance of this factory.
      */
@@ -134,6 +135,7 @@ public final class ReplyFactory {
      * @param id the ID of the reply
      * @return the newly created reply instance
      */
+    @Override
     @Nullable
     public AbstractReply getReply(final int id) {
         final Class<? extends AbstractReply> replyClass = replyMap.get(id);

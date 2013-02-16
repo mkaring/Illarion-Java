@@ -16,13 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with the Illarion Client.  If not, see <http://www.gnu.org/licenses/>.
  */
-package illarion.client.net;
+package illarion.common.net;
 
-import illarion.client.Debug;
-import illarion.client.IllaClient;
-import illarion.client.net.client.AbstractCommand;
-import illarion.client.util.Lang;
-import illarion.common.net.NetCommWriter;
+import illarion.common.config.Config;
 import illarion.common.types.Location;
 import org.apache.log4j.Logger;
 
@@ -64,8 +60,7 @@ final class Sender extends Thread implements NetCommWriter {
      * Length of the byte buffer used to store the data before its send to the
      * server.
      */
-    private final ByteBuffer buffer = ByteBuffer
-            .allocateDirect(MAX_COMMAND_SIZE);
+    private final ByteBuffer buffer = ByteBuffer.allocateDirect(MAX_COMMAND_SIZE);
 
     /**
      * The string encoder that is used to encode the strings before they are
@@ -88,7 +83,7 @@ final class Sender extends Thread implements NetCommWriter {
     /**
      * The list that stores the commands that were not yet encoded.
      */
-    private final BlockingQueue<AbstractCommand> queue;
+    private final BlockingQueue<ClientCommand> queue;
 
     /**
      * Indicator if the Sender is currently running.
@@ -96,17 +91,21 @@ final class Sender extends Thread implements NetCommWriter {
     private boolean running;
 
     /**
+     * This flag stores if the network is currently debugged.
+     */
+    private final boolean networkDebug;
+
+    /**
      * The basic constructor for the sender that sets up all needed data.
      *
      * @param outputQueue the list of yet not encoded server commands
-     * @param out         the output channel of the socket connection used to send the
-     *                    data to the server
+     * @param out         the output channel of the socket connection used to send the data to the server
      */
     @SuppressWarnings("nls")
-    Sender(final BlockingQueue<AbstractCommand> outputQueue,
-           final WritableByteChannel out) {
+    Sender(@Nonnull final Config cfg, final BlockingQueue<ClientCommand> outputQueue, final WritableByteChannel out) {
         super("Illarion output thread");
 
+        //noinspection AssignmentToCollectionOrArrayFieldFromParameter
         queue = outputQueue;
         outChannel = out;
 
@@ -114,72 +113,8 @@ final class Sender extends Thread implements NetCommWriter {
 
         setPriority(Thread.MIN_PRIORITY);
         setDaemon(true);
-    }
 
-    /**
-     * The main loop the the server thread. Encodes the commands in the queue
-     * and prepares them for sending to the server.
-     *
-     * @see Thread#run()
-     */
-    @SuppressWarnings("nls")
-    @Override
-    public void run() {
-        running = true;
-        try {
-            while (running) {
-                // get first command form out queue
-
-                final AbstractCommand cmd;
-                try {
-                    cmd = queue.take();
-                } catch (@Nonnull final InterruptedException e) {
-                    LOGGER.info("Thread \"" + getName() + "\" got interrupted.");
-                    continue;
-                }
-
-                buffer.clear();
-                buffer.put((byte) cmd.getId());
-                buffer.put((byte) (cmd.getId() ^ COMMAND_XOR_MASK));
-
-                // keep some space for the length and the CRC
-                final int headerLenCRC = buffer.position();
-                buffer.putShort((short) 0);
-                buffer.putShort((short) 0);
-
-                final int startOfCmd = buffer.position();
-                // encode command into net protocol
-                cmd.encode(this);
-
-                final int length = buffer.position() - startOfCmd;
-                buffer.flip();
-                buffer.position(startOfCmd);
-                final int crc = NetComm.getCRC(buffer, length);
-                buffer.position(headerLenCRC);
-                buffer.putShort((short) length);
-                buffer.putShort((short) crc);
-                buffer.position(0);
-
-                if (IllaClient.isDebug(Debug.net)) {
-                    NetComm.dump("snd => ", buffer);
-                    buffer.flip();
-                }
-
-                outChannel.write(buffer);
-            }
-        } catch (@Nonnull final Exception e) {
-            LOGGER.fatal("General error within the sender", e);
-            IllaClient.fallbackToLogin(Lang.getMsg("error.sender"));
-        }
-    }
-
-    /**
-     * Shutdown the sender.
-     */
-    public void saveShutdown() {
-        LOGGER.info(getName() + ": Shutdown requested!");
-        running = false;
-        interrupt();
+        networkDebug = cfg.getBoolean(NetComm.CFG_DEBUG_NETWORK_KEY);
     }
 
     /**
@@ -225,8 +160,8 @@ final class Sender extends Thread implements NetCommWriter {
     }
 
     /**
-     * Write a string to the network. The length header of the string is written
-     * automatically and its encoded to the correct CharSet automatically.
+     * Write a string to the network. The length header of the string is written automatically and its encoded to the
+     * correct CharSet automatically.
      *
      * @param value the string that shall be send to the server
      */
@@ -244,6 +179,16 @@ final class Sender extends Thread implements NetCommWriter {
         buffer.position(startIndex);
         writeUShort(lastIndex - startIndex - 2);
         buffer.position(lastIndex);
+    }
+
+    /**
+     * Write 2 byte as unsigned value to the network.
+     *
+     * @param value the value that shall be send as unsigned short
+     */
+    @Override
+    public void writeUShort(final int value) {
+        buffer.putShort((short) (value % ((1 << Short.SIZE) - 1)));
     }
 
     /**
@@ -267,12 +212,67 @@ final class Sender extends Thread implements NetCommWriter {
     }
 
     /**
-     * Write 2 byte as unsigned value to the network.
+     * The main loop the the server thread. Encodes the commands in the queue and prepares them for sending to the
+     * server.
      *
-     * @param value the value that shall be send as unsigned short
+     * @see Thread#run()
      */
+    @SuppressWarnings("nls")
     @Override
-    public void writeUShort(final int value) {
-        buffer.putShort((short) (value % ((1 << Short.SIZE) - 1)));
+    public void run() {
+        running = true;
+        try {
+            while (running) {
+                // get first command form out queue
+
+                final ClientCommand cmd;
+                try {
+                    cmd = queue.take();
+                } catch (@Nonnull final InterruptedException e) {
+                    LOGGER.info("Thread \"" + getName() + "\" got interrupted.");
+                    continue;
+                }
+
+                buffer.clear();
+                buffer.put((byte) cmd.getId());
+                buffer.put((byte) (cmd.getId() ^ COMMAND_XOR_MASK));
+
+                // keep some space for the length and the CRC
+                final int headerLenCRC = buffer.position();
+                buffer.putShort((short) 0);
+                buffer.putShort((short) 0);
+
+                final int startOfCmd = buffer.position();
+                // encode command into net protocol
+                cmd.encode(this);
+
+                final int length = buffer.position() - startOfCmd;
+                buffer.flip();
+                buffer.position(startOfCmd);
+                final int crc = NetComm.getCRC(buffer, length);
+                buffer.position(headerLenCRC);
+                buffer.putShort((short) length);
+                buffer.putShort((short) crc);
+                buffer.position(0);
+
+                if (networkDebug) {
+                    NetComm.dump("snd => ", buffer);
+                    buffer.flip();
+                }
+
+                outChannel.write(buffer);
+            }
+        } catch (@Nonnull final Exception e) {
+            LOGGER.fatal("General error within the sender", e);
+        }
+    }
+
+    /**
+     * Shutdown the sender.
+     */
+    public void saveShutdown() {
+        LOGGER.info(getName() + ": Shutdown requested!");
+        running = false;
+        interrupt();
     }
 }

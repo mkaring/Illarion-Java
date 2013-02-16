@@ -28,6 +28,7 @@ import javax.annotation.Nonnull;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
+@SuppressWarnings("UnusedDeclaration")
 public interface NetCommWriter {
     /**
      * Write 1 byte as signed value to the network.

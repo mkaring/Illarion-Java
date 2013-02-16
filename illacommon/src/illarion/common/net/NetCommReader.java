@@ -29,6 +29,15 @@ import java.io.IOException;
  */
 public interface NetCommReader {
     /**
+     * Read a string from the input buffer and encode it for further usage.
+     *
+     * @return the decoded string
+     * @throws IOException If there are more byte read then there are written in the buffer
+     */
+    @Nonnull
+    String readString() throws IOException;
+
+    /**
      * Read a single byte from the buffer and handle it as signed byte.
      *
      * @return The byte from the buffer handled as signed byte
@@ -51,15 +60,6 @@ public interface NetCommReader {
      * @throws IOException If there are more byte read then there are written in the buffer
      */
     short readShort() throws IOException;
-
-    /**
-     * Read a string from the input buffer and encode it for further usage.
-     *
-     * @return the decoded string
-     * @throws IOException If there are more byte read then there are written in the buffer
-     */
-    @Nonnull
-    String readString() throws IOException;
 
     /**
      * Read a single byte from the buffer and handle it as unsigned byte.

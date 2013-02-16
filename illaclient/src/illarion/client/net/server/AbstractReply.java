@@ -19,6 +19,7 @@
 package illarion.client.net.server;
 
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ServerReply;
 import illarion.common.types.Location;
 
 import javax.annotation.Nonnull;
@@ -30,7 +31,7 @@ import java.io.IOException;
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  * @author Nop
  */
-public abstract class AbstractReply {
+public abstract class AbstractReply implements ServerReply {
     /**
      * Default constructor for a server message.
      */
@@ -58,14 +59,15 @@ public abstract class AbstractReply {
      * @param reader the receiver that stores the data that shall be decoded in this function
      * @throws IOException In case the function reads over the buffer of the receiver this exception is thrown
      */
-    public abstract void decode(final NetCommReader reader)
-            throws IOException;
+    @Override
+    public abstract void decode(@Nonnull NetCommReader reader) throws IOException;
 
     /**
      * Execute the update and send the decoded data to the rest of the client.
      *
      * @return true in case the update is done, false in case this function has to be triggered again later.
      */
+    @Override
     public abstract boolean executeUpdate();
 
     /**
@@ -74,6 +76,7 @@ public abstract class AbstractReply {
      *
      * @return true if the message can be executed now, false if not.
      */
+    @Override
     public boolean processNow() {
         return true;
     }

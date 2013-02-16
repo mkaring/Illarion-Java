@@ -18,15 +18,16 @@
  */
 package illarion.client.world;
 
+import illarion.client.IllaClient;
 import illarion.client.graphics.AnimationManager;
 import illarion.client.graphics.MapDisplayManager;
 import illarion.client.gui.GameGui;
 import illarion.client.gui.controller.GameScreenController;
-import illarion.client.net.NetComm;
 import illarion.client.util.ChatHandler;
 import illarion.client.util.UpdateTaskManager;
 import illarion.client.world.interactive.InteractionManager;
 import illarion.common.graphics.LightTracer;
+import illarion.common.net.NetComm;
 import illarion.common.util.StoppableStorage;
 import org.newdawn.slick.GameContainer;
 
@@ -330,7 +331,7 @@ public final class World {
         INSTANCE.lights = new LightTracer(INSTANCE.map);
         INSTANCE.mapDisplay = new MapDisplayManager();
         INSTANCE.musicBox = new MusicBox();
-        INSTANCE.net = new NetComm();
+        INSTANCE.net = new NetComm(IllaClient.getCfg());
         INSTANCE.people = new People();
         INSTANCE.player = new Player();
         INSTANCE.weather = new Weather();

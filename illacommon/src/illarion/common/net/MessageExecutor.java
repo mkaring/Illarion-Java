@@ -16,15 +16,14 @@
  * You should have received a copy of the GNU General Public License
  * along with the Illarion Client.  If not, see <http://www.gnu.org/licenses/>.
  */
-package illarion.client.net;
+package illarion.common.net;
 
-import illarion.client.Debug;
-import illarion.client.IllaClient;
-import illarion.client.net.server.AbstractReply;
+import illarion.common.config.Config;
 import illarion.common.util.Stoppable;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
@@ -38,33 +37,42 @@ final class MessageExecutor extends Thread implements Stoppable {
     /**
      * The logger instance that takes care for the logging output of this class.
      */
+    @Nonnull
     private static final Logger LOGGER = Logger.getLogger(MessageExecutor.class);
 
     /**
      * This queue contains all tasks that were executed already once and need to be executed a second time.
      */
     @Nonnull
-    private final Queue<AbstractReply> delayedQueue;
+    private final Queue<ServerReply> delayedQueue;
 
     /**
      * The queue that contains all the tasks that were received from the server and still need to be executed.
      */
-    private final BlockingQueue<AbstractReply> input;
-
-    /**
-     * This boolean stores if anything was received already from the server.
-     */
-    private boolean receivedAnything = false;
+    @Nonnull
+    private final BlockingQueue<ServerReply> input;
 
     /**
      * This reply is to be repeated at the next run.
      */
-    private AbstractReply repeatReply;
+    @Nullable
+    private ServerReply repeatReply;
 
     /**
-     * The running flag. The loop of this thread will keep running until this flag is set to <code>false</code>.
+     * The running flag. The loop of this thread will keep running until this flag is set to {@code false}.
      */
     private volatile boolean running;
+
+    /**
+     * The configuration supplier that is used by the message executor.
+     */
+    @Nonnull
+    private final Config config;
+
+    /**
+     * This value is set {@code true} in case the network is supposed to be debugged.
+     */
+    private boolean networkDebug;
 
     /**
      * Default constructor for a message executor.
@@ -72,26 +80,29 @@ final class MessageExecutor extends Thread implements Stoppable {
      * @param inputQueue the input queue of messages that need to be handled
      */
     @SuppressWarnings("nls")
-    public MessageExecutor(final BlockingQueue<AbstractReply> inputQueue) {
+    MessageExecutor(@Nonnull final Config cfg, @Nonnull final BlockingQueue<ServerReply> inputQueue) {
         super("NetComm MessageExecutor");
+        //noinspection AssignmentToCollectionOrArrayFieldFromParameter
         input = inputQueue;
-        delayedQueue = new LinkedList<AbstractReply>();
+        config = cfg;
+        delayedQueue = new LinkedList<ServerReply>();
     }
-
 
     @Override
     public synchronized void start() {
+        networkDebug = config.getBoolean(NetComm.CFG_DEBUG_NETWORK_KEY);
         running = true;
         super.start();
     }
 
     /**
-     * Check if the client received already anything from the server.
-     *
-     * @return <code>true</code> in case anything was received from server
+     * Have the thread finishing the current message and shut the thread down after.
      */
-    public boolean hasReceivedAnything() {
-        return receivedAnything;
+    @Override
+    public void saveShutdown() {
+        LOGGER.info(getName() + ": Shutdown requested!");
+        running = false;
+        interrupt();
     }
 
     /**
@@ -106,12 +117,12 @@ final class MessageExecutor extends Thread implements Stoppable {
              * does not block from executing.
              */
             if (!delayedQueue.isEmpty() && delayedQueue.peek().processNow()) {
-                final AbstractReply rpl = delayedQueue.poll();
+                final ServerReply rpl = delayedQueue.poll();
                 rpl.executeUpdate();
                 continue;
             }
 
-            AbstractReply rpl;
+            final ServerReply rpl;
 
             if (repeatReply == null) {
                 try {
@@ -124,22 +135,21 @@ final class MessageExecutor extends Thread implements Stoppable {
             } else {
                 rpl = repeatReply;
             }
-            receivedAnything = true;
 
             /*
              * Process the updates or put them into the delayed queue.
              */
             if (rpl.processNow()) {
-                if (IllaClient.isDebug(Debug.net)) {
+                if (networkDebug) {
                     LOGGER.debug("executing " + rpl.toString());
                 }
 
                 if (rpl.executeUpdate()) {
-                    if (IllaClient.isDebug(Debug.net)) {
+                    if (networkDebug) {
                         LOGGER.debug("finished " + rpl.toString());
                     }
                 } else {
-                    if (IllaClient.isDebug(Debug.net)) {
+                    if (networkDebug) {
                         LOGGER.debug("repeating " + rpl.toString());
                     }
 
@@ -149,15 +159,5 @@ final class MessageExecutor extends Thread implements Stoppable {
                 delayedQueue.offer(rpl);
             }
         }
-    }
-
-    /**
-     * Have the thread finishing the current message and shut the thread down after.
-     */
-    @Override
-    public void saveShutdown() {
-        LOGGER.info(getName() + ": Shutdown requested!");
-        running = false;
-        interrupt();
     }
 }

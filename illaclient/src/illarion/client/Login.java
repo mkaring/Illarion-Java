@@ -18,12 +18,15 @@
  */
 package illarion.client;
 
-import illarion.client.net.NetComm;
+import illarion.client.crash.NetCommCrashHandler;
+import illarion.client.net.ReplyFactory;
+import illarion.client.net.client.KeepAliveCmd;
 import illarion.client.net.client.LoginCmd;
 import illarion.client.util.GlobalExecutorService;
 import illarion.client.util.Lang;
 import illarion.client.world.World;
 import illarion.common.data.IllarionSSLSocketFactory;
+import illarion.common.net.NetComm;
 import illarion.common.util.Base64;
 import org.apache.log4j.Logger;
 import org.w3c.dom.Document;
@@ -280,9 +283,11 @@ public final class Login {
 
     public boolean login() {
         final NetComm netComm = World.getNet();
-        if (!netComm.connect()) {
+        if (!netComm.connect(IllaClient.DEFAULT_SERVER.getServerHost(), IllaClient.DEFAULT_SERVER.getServerPort(),
+                ReplyFactory.getInstance(), NetCommCrashHandler.getInstance())) {
             return false;
         }
+        netComm.setupKeepAlive(10000, new KeepAliveCmd());
 
         World.getNet().sendCommand(new LoginCmd(loginCharacter, password,
                 IllaClient.DEFAULT_SERVER.getClientVersion()));
