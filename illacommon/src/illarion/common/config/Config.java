@@ -56,7 +56,7 @@ public interface Config {
      *
      * @param key the key of that value
      * @return the value that was read from the configuration or
-     *         <code>false</code> in case no value is set
+     *         {@code false} in case no value is set
      */
     boolean getBoolean(String key);
 
@@ -76,7 +76,7 @@ public interface Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>0</code> in case there is no value set for this key
+     *         {@code 0} in case there is no value set for this key
      */
     double getDouble(String key);
 
@@ -86,7 +86,7 @@ public interface Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>null</code> in case there is no value set for this key
+     *         {@code null} in case there is no value set for this key
      */
     File getFile(String key);
 
@@ -96,7 +96,7 @@ public interface Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>0</code> in case there is no value set for this key
+     *         {@code 0} in case there is no value set for this key
      */
     float getFloat(String key);
 
@@ -106,7 +106,7 @@ public interface Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>0</code> in case there is no value set for this key
+     *         {@code 0} in case there is no value set for this key
      */
     int getInteger(String key);
 
@@ -116,7 +116,7 @@ public interface Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>0</code> in case there is no value set for this key
+     *         {@code 0} in case there is no value set for this key
      */
     long getLong(String key);
 
@@ -126,7 +126,7 @@ public interface Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>0</code> in case there is no value set for this key
+     *         {@code 0} in case there is no value set for this key
      */
     short getShort(String key);
 
@@ -136,7 +136,7 @@ public interface Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>null</code> in case there is no value set for this key
+     *         {@code null} in case there is no value set for this key
      */
     String getString(String key);
 

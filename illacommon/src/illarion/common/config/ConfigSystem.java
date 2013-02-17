@@ -75,7 +75,7 @@ public class ConfigSystem implements Config {
     private final XMLBinding binding;
 
     /**
-     * This flag is set to <code>true</code> in case any changes where applied
+     * This flag is set to {@code true} in case any changes where applied
      * to the configuration. Only in case those changes got applied the
      * configuration file needs to be saved at all.
      */
@@ -218,7 +218,7 @@ public class ConfigSystem implements Config {
      *
      * @param key the key of that value
      * @return the value that was read from the configuration or
-     *         <code>false</code> in case no value is set
+     *         {@code false} in case no value is set
      */
     @Override
     public boolean getBoolean(final String key) {
@@ -266,7 +266,7 @@ public class ConfigSystem implements Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>0</code> in case there is no value set for this key
+     *         {@code 0} in case there is no value set for this key
      */
     @Override
     public double getDouble(final String key) {
@@ -290,7 +290,7 @@ public class ConfigSystem implements Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>null</code> in case there is no value set for this key
+     *         {@code null} in case there is no value set for this key
      */
     @Nullable
     @Override
@@ -315,7 +315,7 @@ public class ConfigSystem implements Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>0</code> in case there is no value set for this key
+     *         {@code 0} in case there is no value set for this key
      */
     @Override
     public float getFloat(final String key) {
@@ -339,7 +339,7 @@ public class ConfigSystem implements Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>0</code> in case there is no value set for this key
+     *         {@code 0} in case there is no value set for this key
      */
     @Override
     public int getInteger(final String key) {
@@ -363,7 +363,7 @@ public class ConfigSystem implements Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>0</code> in case there is no value set for this key
+     *         {@code 0} in case there is no value set for this key
      */
     @Override
     public long getLong(final String key) {
@@ -387,7 +387,7 @@ public class ConfigSystem implements Config {
      *
      * @param key the key of that value
      * @return the value that was read from the configuration or
-     *         <code>null</code> in case no value is set
+     *         {@code null} in case no value is set
      */
     @Nullable
     public Object getObject(final String key) {
@@ -400,7 +400,6 @@ public class ConfigSystem implements Config {
         }
 
         if (value == null) {
-            LOGGER.warn("No config entry found for: " + key);
             return null;
         }
 
@@ -413,7 +412,7 @@ public class ConfigSystem implements Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>0</code> in case there is no value set for this key
+     *         {@code 0} in case there is no value set for this key
      */
     @Override
     public short getShort(final String key) {
@@ -437,7 +436,7 @@ public class ConfigSystem implements Config {
      *
      * @param key the key of the value
      * @return the value that was read from the configuration file or
-     *         <code>null</code> in case there is no value set for this key
+     *         {@code null} in case there is no value set for this key
      */
     @Nullable
     @Override
