@@ -70,6 +70,7 @@ public final class UserNameStorage extends UserNameStore {
 
     @Override
     public void addUserName(final String userName) {
+        userNames.remove(userName);
         userNames.add(0, userName);
     }
 

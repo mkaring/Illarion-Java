@@ -19,6 +19,7 @@
 package illarion.bbiwi;
 
 import illarion.bbiwi.crash.DefaultCrashHandler;
+import illarion.bbiwi.login.PasswordStorage;
 import illarion.bbiwi.login.UserNameStorage;
 import illarion.common.config.Config;
 import illarion.common.config.ConfigSystem;
@@ -121,14 +122,19 @@ public final class BBIWI {
                 final List<String> serverList = new ArrayList<String>();
                 serverList.add("Illarion Server");
                 serverList.add("Test Server");
-                final JXLoginPane loginPane = new JXLoginPane(null, null, new UserNameStorage(configSystem), serverList);
+                final JXLoginPane loginPane = new JXLoginPane(null, new PasswordStorage(configSystem),
+                        new UserNameStorage(configSystem),
+                        serverList);
                 final JXLoginPane.JXLoginDialog loginDialog = new JXLoginPane.JXLoginDialog((Frame) null, loginPane);
                 loginDialog.setTitle(loginDialog.getTitle() + " - " + APPLICATION + ' ' + VERSION);
                 loginDialog.setVisible(true);
 
                 System.out.println("Startup done.");
+
+                configSystem.save();
             }
         });
+
     }
 
     /**
