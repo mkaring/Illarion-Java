@@ -20,12 +20,14 @@ package illarion.common.types;
 
 import illarion.common.graphics.Layers;
 import illarion.common.graphics.MapConstants;
+import illarion.common.net.NetCommReader;
 import illarion.common.util.FastMath;
 import javolution.text.TextBuilder;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -229,6 +231,18 @@ public class Location implements Serializable {
         this();
         set(org);
         moveSC(direction);
+    }
+
+    /**
+     * This constructor is used to read a location from the network interface.
+     * <p/>
+     * To do so the next 6 bytes are read as X-, Y- and Z-coordinate. Each is read as signed 2-byte integer value.
+     *
+     * @param reader the network interface reader that is the source of the data
+     * @throws IOException in case reading the data fails
+     */
+    public Location(@Nonnull final NetCommReader reader) throws IOException {
+        this(reader.readShort(), reader.readShort(), reader.readShort());
     }
 
     /**
