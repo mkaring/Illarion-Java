@@ -19,6 +19,9 @@
 package illarion.bbiwi;
 
 import illarion.bbiwi.crash.DefaultCrashHandler;
+import illarion.bbiwi.login.UserNameStorage;
+import illarion.common.config.Config;
+import illarion.common.config.ConfigSystem;
 import illarion.common.util.DirectoryManager;
 import illarion.common.util.JavaLogToLog4J;
 import illarion.common.util.StdOutToLog4J;
@@ -28,6 +31,7 @@ import org.jdesktop.swingx.JXLoginPane;
 import org.pushingpixels.substance.api.SubstanceLookAndFeel;
 import org.pushingpixels.substance.api.skin.OfficeBlue2007Skin;
 
+import javax.annotation.Nullable;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
@@ -61,6 +65,33 @@ public final class BBIWI {
     private static final Logger LOGGER = Logger.getLogger(BBIWI.class);
 
     /**
+     * The configuration system used by the BBIWI.
+     */
+    private static ConfigSystem configSystem;
+
+    /**
+     * Initialize the configuration system.
+     *
+     * @throws IOException in case creating the configuration system failed
+     */
+    private static void initConfig() throws IOException {
+        @Nullable final File userDirectory = DirectoryManager.getInstance().getUserDirectory();
+        if (userDirectory == null) {
+            throw new IOException("No user directory found.");
+        }
+        configSystem = new ConfigSystem(new File(userDirectory, "bbiwi.xcfgz"));
+    }
+
+    /**
+     * Get the active instance of the configuration system.
+     *
+     * @return the instance of the configuration system
+     */
+    public static Config getConfig() {
+        return configSystem;
+    }
+
+    /**
      * Launch function.
      *
      * @param args launch arguments
@@ -68,6 +99,7 @@ public final class BBIWI {
     public static void main(final String[] args) {
         try {
             initLogfiles();
+            initConfig();
         } catch (final IOException e) {
             System.err.println("Failed to setup logging system!");
             e.printStackTrace(System.err);
@@ -89,7 +121,7 @@ public final class BBIWI {
                 final List<String> serverList = new ArrayList<String>();
                 serverList.add("Illarion Server");
                 serverList.add("Test Server");
-                final JXLoginPane loginPane = new JXLoginPane(null, null, null, serverList);
+                final JXLoginPane loginPane = new JXLoginPane(null, null, new UserNameStorage(configSystem), serverList);
                 final JXLoginPane.JXLoginDialog loginDialog = new JXLoginPane.JXLoginDialog((Frame) null, loginPane);
                 loginDialog.setTitle(loginDialog.getTitle() + " - " + APPLICATION + ' ' + VERSION);
                 loginDialog.setVisible(true);
