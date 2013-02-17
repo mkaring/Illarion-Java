@@ -53,7 +53,7 @@ public final class DirectoryManager {
     private File dataDirectory;
 
     /**
-     * This flag is set <code>true</code> in case the directories got changed
+     * This flag is set {@code true} in case the directories got changed
      * and need to be saved.
      */
     private boolean dirty;
@@ -80,11 +80,11 @@ public final class DirectoryManager {
 
         BufferedReader inFile = null;
         try {
-            File testDir = null;
             inFile = new BufferedReader(new FileReader(settingsFile));
             String line = inFile.readLine();
 
             while (line != null) {
+                File testDir;
                 if (line.startsWith(USER_HEADER)) {
                     testDir = new File(line.substring(USER_HEADER.length()));
                     if (testDirectory(testDir)) {
@@ -105,17 +105,14 @@ public final class DirectoryManager {
                 }
                 line = inFile.readLine();
             }
-        } catch (@Nonnull final FileNotFoundException e) {
-            return;
-        } catch (@Nonnull final IOException e) {
-            return;
+        } catch (@Nonnull final FileNotFoundException ignored) {
+        } catch (@Nonnull final IOException ignored) {
         } finally {
             try {
                 if (inFile != null) {
                     inFile.close();
                 }
-            } catch (@Nonnull final IOException e) {
-                return;
+            } catch (@Nonnull final IOException ignored) {
             }
         }
     }
@@ -134,7 +131,7 @@ public final class DirectoryManager {
      * Get the directory that is used to store the application data for the
      * Illarion Java applications.
      *
-     * @return the directory or <code>null</code> in case there is no directory
+     * @return the directory or {@code null} in case there is no directory
      *         set
      */
     @Nullable
@@ -145,8 +142,7 @@ public final class DirectoryManager {
     /**
      * Get the directory for the user data.
      *
-     * @return the directory for the user data or <code>null</code> in case its
-     *         not set
+     * @return the directory for the user data or {@code null} in case its not set
      */
     @Nullable
     public File getUserDirectory() {
@@ -156,25 +152,25 @@ public final class DirectoryManager {
     /**
      * Check if a application data directory is set.
      *
-     * @return <code>true</code> in case the application data directory is set
+     * @return {@code true} in case the application data directory is set
      */
     public boolean hasDataDirectory() {
-        return (dataDirectory != null);
+        return dataDirectory != null;
     }
 
     /**
      * Check if a user directory is set.
      *
-     * @return <code>true</code> in case a user directory is set
+     * @return {@code true} in case a user directory is set
      */
     public boolean hasUserDirectory() {
-        return (userDirectory != null);
+        return userDirectory != null;
     }
 
     /**
      * Save the directory settings to the hard disk.
      *
-     * @return <code>true</code> in case the saving operation went well
+     * @return {@code true} in case the saving operation went well
      */
     @SuppressWarnings("nls")
     public boolean save() {
