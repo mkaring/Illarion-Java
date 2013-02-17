@@ -91,6 +91,7 @@ public final class BBIWI {
                 serverList.add("Test Server");
                 final JXLoginPane loginPane = new JXLoginPane(null, null, null, serverList);
                 final JXLoginPane.JXLoginDialog loginDialog = new JXLoginPane.JXLoginDialog((Frame) null, loginPane);
+                loginDialog.setTitle(loginDialog.getTitle() + " - " + APPLICATION + ' ' + VERSION);
                 loginDialog.setVisible(true);
 
                 System.out.println("Startup done.");
