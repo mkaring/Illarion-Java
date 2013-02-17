@@ -19,12 +19,16 @@
 package illarion.bbiwi.login;
 
 import illarion.bbiwi.BBIWI;
+import illarion.bbiwi.events.CommunicationEvent;
+import illarion.bbiwi.events.DisconnectEvent;
 import illarion.bbiwi.net.ReplyFactory;
 import illarion.bbiwi.net.client.KeepAliveCmd;
 import illarion.bbiwi.net.client.LoginCmd;
 import illarion.common.config.Config;
 import illarion.common.net.NetComm;
 import illarion.common.net.Server;
+import org.bushe.swing.event.EventBus;
+import org.bushe.swing.event.EventSubscriber;
 import org.jdesktop.swingx.auth.LoginService;
 
 /**
@@ -62,9 +66,37 @@ public final class ServerLoginService extends LoginService {
             return false;
         }
 
+        waitingForNetwork = true;
+        loginSuccess = false;
+
+        EventBus.subscribeStrongly(CommunicationEvent.class, new EventSubscriber<CommunicationEvent>() {
+            @Override
+            public void onEvent(final CommunicationEvent event) {
+                loginSuccess = !(event instanceof DisconnectEvent);
+                waitingForNetwork = false;
+                EventBus.unsubscribe(CommunicationEvent.class, this);
+            }
+        });
+
 
         netComm.sendCommand(new LoginCmd(name, String.valueOf(password), usedServer.getMonitoringClientVersion()));
         netComm.setupKeepAlive(10000, new KeepAliveCmd());
-        return true;
+
+        while (waitingForNetwork) {
+            try {
+                Thread.sleep(10);
+            } catch (final InterruptedException ex) {
+                netComm.disconnect();
+            }
+        }
+
+        if (loginSuccess) {
+            return true;
+        }
+        netComm.disconnect();
+        return false;
     }
+
+    private boolean waitingForNetwork;
+    private boolean loginSuccess;
 }

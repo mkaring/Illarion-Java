@@ -18,9 +18,11 @@
  */
 package illarion.bbiwi.net.server;
 
+import illarion.bbiwi.events.GenericComEvent;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
+import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -51,6 +53,7 @@ public final class PersonalIdMsg extends AbstractReply {
     @Override
     public boolean executeUpdate() {
         // TODO: Execute this command
+        EventServiceLocator.getSwingEventService().publish(new GenericComEvent());
         return true;
     }
 }

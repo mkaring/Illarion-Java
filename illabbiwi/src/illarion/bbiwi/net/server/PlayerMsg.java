@@ -18,10 +18,12 @@
  */
 package illarion.bbiwi.net.server;
 
+import illarion.bbiwi.events.GenericComEvent;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
 import illarion.common.types.Location;
+import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -58,6 +60,7 @@ public final class PlayerMsg extends AbstractReply {
     @Override
     public boolean executeUpdate() {
         // TODO: Forward received data to BBIWI
+        EventServiceLocator.getSwingEventService().publish(new GenericComEvent());
         return true;
     }
 

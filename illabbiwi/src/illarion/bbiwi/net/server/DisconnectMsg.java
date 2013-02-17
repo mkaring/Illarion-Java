@@ -18,8 +18,10 @@
  */
 package illarion.bbiwi.net.server;
 
+import illarion.bbiwi.events.DisconnectEvent;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
+import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -72,7 +74,7 @@ public final class DisconnectMsg extends AbstractReply {
     @SuppressWarnings("nls")
     @Override
     public boolean executeUpdate() {
-        // TODO: Execute the disconnect
+        EventServiceLocator.getSwingEventService().publish(new DisconnectEvent());
         return true;
     }
 }

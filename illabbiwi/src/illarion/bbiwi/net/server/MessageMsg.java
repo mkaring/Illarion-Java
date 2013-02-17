@@ -18,8 +18,10 @@
  */
 package illarion.bbiwi.net.server;
 
+import illarion.bbiwi.events.GenericComEvent;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
+import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -65,6 +67,7 @@ public final class MessageMsg extends AbstractReply {
     @Override
     public boolean executeUpdate() {
         // TODO: Show message in GUI
+        EventServiceLocator.getSwingEventService().publish(new GenericComEvent());
         return true;
     }
 
