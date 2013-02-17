@@ -19,11 +19,11 @@
 package illarion.client.net.server;
 
 import illarion.client.net.CommandList;
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.world.World;
 import illarion.common.data.Skill;
 import illarion.common.data.Skills;
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ReplyMessage;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;

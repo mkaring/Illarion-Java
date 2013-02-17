@@ -19,9 +19,9 @@
 package illarion.client.net.server;
 
 import illarion.client.net.CommandList;
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.world.events.CloseDialogEvent;
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ReplyMessage;
 import org.bushe.swing.event.EventBus;
 
 import javax.annotation.Nonnull;

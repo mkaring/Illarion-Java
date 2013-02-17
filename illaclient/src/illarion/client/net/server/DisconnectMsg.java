@@ -21,9 +21,9 @@ package illarion.client.net.server;
 import illarion.client.IllaClient;
 import illarion.client.Login;
 import illarion.client.net.CommandList;
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.util.Lang;
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ReplyMessage;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;

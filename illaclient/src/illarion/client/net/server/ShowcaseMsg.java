@@ -19,9 +19,9 @@
 package illarion.client.net.server;
 
 import illarion.client.net.CommandList;
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.net.server.events.OpenContainerEvent;
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ReplyMessage;
 import illarion.common.types.ItemCount;
 import illarion.common.types.ItemId;
 import org.bushe.swing.event.EventBus;

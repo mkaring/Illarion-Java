@@ -20,13 +20,13 @@ package illarion.client.net.server;
 
 import illarion.client.graphics.AvatarClothManager;
 import illarion.client.net.CommandList;
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.net.server.events.AttributeUpdateReceivedEvent;
 import illarion.client.world.Char;
 import illarion.client.world.World;
 import illarion.client.world.items.Inventory;
 import illarion.common.data.CharacterAttribute;
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
 import illarion.common.types.ItemId;
 import org.apache.log4j.Logger;

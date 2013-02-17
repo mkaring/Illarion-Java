@@ -19,10 +19,10 @@
 package illarion.client.net.server;
 
 import illarion.client.net.CommandList;
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.net.server.events.LoginFinishedEvent;
 import illarion.client.world.World;
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ReplyMessage;
 import org.bushe.swing.event.EventBus;
 
 import javax.annotation.Nonnull;

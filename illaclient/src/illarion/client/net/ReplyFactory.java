@@ -18,15 +18,10 @@
  */
 package illarion.client.net;
 
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.net.server.*;
-import illarion.common.net.ServerReplyFactory;
-import org.apache.log4j.Logger;
+import illarion.common.net.AbstractReplyFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * The Factory for commands the server sends to the client. This factory creates the required message objects on
@@ -34,29 +29,32 @@ import java.util.Map;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class ReplyFactory implements ServerReplyFactory {
+@SuppressWarnings("OverlyCoupledClass")
+public final class ReplyFactory extends AbstractReplyFactory {
     /**
      * The singleton instance of this factory.
      */
     private static final ReplyFactory INSTANCE = new ReplyFactory();
 
     /**
-     * The logger that takes care for the logging output of this class.
-     */
-    private static final Logger LOGGER = Logger.getLogger(ReplyFactory.class);
-
-    /**
-     * This map stores the message classes along with the IDs of the command encoded in them.
-     */
-    @Nonnull
-    private final Map<Integer, Class<? extends AbstractReply>> replyMap;
-
-    /**
-     * The default constructor of the factory. This registers all commands.
+     * The default constructor of the factory.
      */
     private ReplyFactory() {
-        replyMap = new HashMap<Integer, Class<? extends AbstractReply>>();
+        super();
+    }
 
+    /**
+     * Get the singleton instance of this class.
+     *
+     * @return the singleton instance of this class
+     */
+    @Nonnull
+    public static ReplyFactory getInstance() {
+        return INSTANCE;
+    }
+
+    @Override
+    protected void registerReplies() {
         register(AppearanceMsg.class);
         register(AttackMsg.class);
         register(AttributeMsg.class);
@@ -104,64 +102,5 @@ public final class ReplyFactory implements ServerReplyFactory {
         register(TargetLostMsg.class);
         register(TurnCharMsg.class);
         register(WeatherMsg.class);
-    }
-
-    /**
-     * Register a class as replay message class. Those classes need to implement the {@link AbstractReply} interface
-     * and they require the contain the {@link ReplyMessage} annotation.
-     *
-     * @param clazz the class to register as reply.
-     */
-    private void register(@Nonnull final Class<? extends AbstractReply> clazz) {
-        final ReplyMessage messageData = clazz.getAnnotation(ReplyMessage.class);
-
-        if (messageData == null) {
-            LOGGER.error("Illegal class supplied to register! No annotation: " + clazz.getName());
-            return;
-        }
-
-        if (replyMap.containsKey(messageData.replyId())) {
-            LOGGER.error("Class with duplicated key: " + clazz.getName());
-            return;
-        }
-
-        replyMap.put(messageData.replyId(), clazz);
-    }
-
-    /**
-     * Get a replay instance. This class will check if there is any reply fitting the ID registered and create a new
-     * instance of it.
-     *
-     * @param id the ID of the reply
-     * @return the newly created reply instance
-     */
-    @Override
-    @Nullable
-    public AbstractReply getReply(final int id) {
-        final Class<? extends AbstractReply> replyClass = replyMap.get(id);
-
-        if (replyClass == null) {
-            LOGGER.error("Illegal reply requested. ID: 0x" + Integer.toHexString(id));
-            return null;
-        }
-
-        try {
-            return replyClass.newInstance();
-        } catch (InstantiationException e) {
-            LOGGER.error("Failed to create instance of reply class!", e);
-        } catch (IllegalAccessException e) {
-            LOGGER.error("Access to reply class constructor was denied.", e);
-        }
-        return null;
-    }
-
-    /**
-     * Get the singleton instance of this class.
-     *
-     * @return the singleton instance of this class
-     */
-    @Nonnull
-    public static ReplyFactory getInstance() {
-        return INSTANCE;
     }
 }

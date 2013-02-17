@@ -19,10 +19,10 @@
 package illarion.client.net.server;
 
 import illarion.client.net.CommandList;
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.world.World;
 import illarion.common.graphics.LightTracer;
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ReplyMessage;
 import illarion.common.types.Location;
 
 import javax.annotation.Nonnull;

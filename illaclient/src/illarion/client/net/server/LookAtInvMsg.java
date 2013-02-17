@@ -20,9 +20,9 @@ package illarion.client.net.server;
 
 import illarion.client.gui.Tooltip;
 import illarion.client.net.CommandList;
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.world.World;
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ReplyMessage;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;

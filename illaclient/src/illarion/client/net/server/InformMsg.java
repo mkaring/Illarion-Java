@@ -21,10 +21,10 @@ package illarion.client.net.server;
 import illarion.client.gui.ChatGui;
 import illarion.client.gui.GameGui;
 import illarion.client.net.CommandList;
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.util.Lang;
 import illarion.client.world.World;
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ReplyMessage;
 import javolution.text.TextBuilder;
 import org.apache.log4j.Logger;
 

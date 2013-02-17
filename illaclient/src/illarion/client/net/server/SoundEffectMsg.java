@@ -19,11 +19,11 @@
 package illarion.client.net.server;
 
 import illarion.client.net.CommandList;
-import illarion.client.net.annotations.ReplyMessage;
 import illarion.client.resources.SoundFactory;
 import illarion.client.util.UpdateTask;
 import illarion.client.world.World;
 import illarion.common.net.NetCommReader;
+import illarion.common.net.ReplyMessage;
 import illarion.common.types.Location;
 import org.apache.log4j.Logger;
 import org.newdawn.slick.GameContainer;
