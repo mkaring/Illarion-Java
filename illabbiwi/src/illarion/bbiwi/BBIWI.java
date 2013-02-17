@@ -20,14 +20,19 @@ package illarion.bbiwi;
 
 import illarion.bbiwi.crash.DefaultCrashHandler;
 import illarion.bbiwi.login.PasswordStorage;
+import illarion.bbiwi.login.ServerLoginService;
 import illarion.bbiwi.login.UserNameStorage;
 import illarion.common.config.Config;
 import illarion.common.config.ConfigSystem;
+import illarion.common.net.NetComm;
 import illarion.common.util.DirectoryManager;
 import illarion.common.util.JavaLogToLog4J;
 import illarion.common.util.StdOutToLog4J;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
+import org.bushe.swing.event.EventServiceExistsException;
+import org.bushe.swing.event.EventServiceLocator;
+import org.bushe.swing.event.SwingEventService;
 import org.jdesktop.swingx.JXLoginPane;
 import org.pushingpixels.substance.api.SubstanceLookAndFeel;
 import org.pushingpixels.substance.api.skin.OfficeBlue2007Skin;
@@ -81,6 +86,8 @@ public final class BBIWI {
             throw new IOException("No user directory found.");
         }
         configSystem = new ConfigSystem(new File(userDirectory, "bbiwi.xcfgz"));
+        configSystem.setDefault(NetComm.CFG_DEBUG_PROTOCOL_KEY, true);
+        configSystem.setDefault(NetComm.CFG_DEBUG_NETWORK_KEY, false);
     }
 
     /**
@@ -98,6 +105,12 @@ public final class BBIWI {
      * @param args launch arguments
      */
     public static void main(final String[] args) {
+        try {
+            EventServiceLocator.setEventService(EventServiceLocator.SERVICE_NAME_EVENT_BUS, new SwingEventService());
+        } catch (EventServiceExistsException e) {
+            System.err.println("Failed to setup event system!");
+        }
+
         try {
             initLogfiles();
             initConfig();
@@ -120,11 +133,10 @@ public final class BBIWI {
                 }
 
                 final List<String> serverList = new ArrayList<String>();
-                serverList.add("Illarion Server");
-                serverList.add("Test Server");
-                final JXLoginPane loginPane = new JXLoginPane(null, new PasswordStorage(configSystem),
-                        new UserNameStorage(configSystem),
-                        serverList);
+                serverList.add(REAL_SERVER);
+                serverList.add(TEST_SERVER);
+                final JXLoginPane loginPane = new JXLoginPane(new ServerLoginService(configSystem),
+                        new PasswordStorage(configSystem), new UserNameStorage(configSystem), serverList);
                 final JXLoginPane.JXLoginDialog loginDialog = new JXLoginPane.JXLoginDialog((Frame) null, loginPane);
                 loginDialog.setTitle(loginDialog.getTitle() + " - " + APPLICATION + ' ' + VERSION);
                 loginDialog.setVisible(true);
@@ -134,8 +146,10 @@ public final class BBIWI {
                 configSystem.save();
             }
         });
-
     }
+
+    public static final String REAL_SERVER = "Illarion Server";
+    public static final String TEST_SERVER = "Test Server";
 
     /**
      * Basic initialization of the log files and the debug settings.

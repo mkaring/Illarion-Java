@@ -250,15 +250,12 @@ public final class Login {
             final Login.CharEntry addChar = new Login.CharEntry(charName, status);
 
             switch (IllaClient.DEFAULT_SERVER) {
-                case localserver:
-                    charList.add(addChar);
-                    break;
-                case testserver:
+                case TestServer:
                     if ("testserver".equals(charServer)) {
                         charList.add(addChar);
                     }
                     break;
-                case realserver:
+                case RealServer:
                     if ("illarionserver".equals(charServer)) {
                         charList.add(addChar);
                     }

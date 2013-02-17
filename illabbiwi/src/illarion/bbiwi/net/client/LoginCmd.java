@@ -43,26 +43,33 @@ public final class LoginCmd extends AbstractCommand {
     private final String password;
 
     /**
+     * The client version that is send to the server to identify the client type.
+     */
+    private final int version;
+
+    /**
      * Create a new login command.
      *
      * @param username the name of the character used to login
      * @param password the password used to login
+     * @param version  the version send to the server
      */
-    public LoginCmd(@Nonnull final String username, @Nonnull final String password) {
+    public LoginCmd(@Nonnull final String username, @Nonnull final String password, final int version) {
         super(0x0D);
         this.username = username;
         this.password = password;
+        this.version = version;
     }
 
     @Nonnull
     @Override
     public String toString() {
-        return toString("Name: " + username + " Version: " + 200);
+        return toString("Name: " + username + " Version: " + version);
     }
 
     @Override
     public void encode(@Nonnull final NetCommWriter writer) {
-        writer.writeUByte((short) 200); // client version
+        writer.writeUByte((short) version); // client version
         writer.writeString(username);
         writer.writeString(password);
     }

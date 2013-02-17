@@ -40,6 +40,7 @@ import illarion.common.config.Config;
 import illarion.common.config.ConfigChangedEvent;
 import illarion.common.config.ConfigSystem;
 import illarion.common.graphics.GraphicResolution;
+import illarion.common.net.Server;
 import illarion.common.util.*;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -88,13 +89,13 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      * The default server the client connects too. The client will always connect to this server.
      */
     @Nonnull
-    public static final Servers DEFAULT_SERVER;
+    public static final Server DEFAULT_SERVER;
 
     static {
         if ("testserver".equals(System.getProperty("illarion.server"))) {
-            DEFAULT_SERVER = Servers.testserver;
+            DEFAULT_SERVER = Server.TestServer;
         } else {
-            DEFAULT_SERVER = Servers.realserver;
+            DEFAULT_SERVER = Server.RealServer;
         }
     }
 
@@ -140,7 +141,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
     /**
      * Stores the server the client shall connect to.
      */
-    private Servers usedServer = DEFAULT_SERVER;
+    private Server usedServer = DEFAULT_SERVER;
 
     /**
      * This is the reference to the Illarion Game instance.
@@ -183,7 +184,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
         CrashReporter.getInstance().setConfig(getCfg());
 
         // Disable error reporting for the testserver
-        if (DEFAULT_SERVER == Servers.testserver) {
+        if (DEFAULT_SERVER == Server.TestServer) {
             CrashReporter.getInstance().setMode(CrashReporter.MODE_NEVER);
         }
 
@@ -236,7 +237,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
         gameContainer.setResizable(true);
         gameContainer.setTargetFrameRate(res.getRefreshRate());
         gameContainer.setForceExit(false);
-        if (DEFAULT_SERVER == Servers.realserver) {
+        if (DEFAULT_SERVER == Server.RealServer) {
             gameContainer.setShowFPS(false);
         }
 
@@ -467,7 +468,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      *
      * @return the selected server
      */
-    public Servers getUsedServer() {
+    public Server getUsedServer() {
         return usedServer;
     }
 
@@ -487,7 +488,7 @@ public final class IllaClient implements EventTopicSubscriber<ConfigChangedEvent
      *
      * @param server the server that is used to connect with
      */
-    public void setUsedServer(final Servers server) {
+    public void setUsedServer(final Server server) {
         usedServer = server;
     }
 
