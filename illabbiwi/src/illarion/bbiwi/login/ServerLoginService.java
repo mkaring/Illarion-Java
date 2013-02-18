@@ -19,6 +19,7 @@
 package illarion.bbiwi.login;
 
 import illarion.bbiwi.BBIWI;
+import illarion.bbiwi.MainFrame;
 import illarion.bbiwi.events.CommunicationEvent;
 import illarion.bbiwi.events.DisconnectEvent;
 import illarion.bbiwi.net.ReplyFactory;
@@ -28,8 +29,11 @@ import illarion.common.config.Config;
 import illarion.common.net.NetComm;
 import illarion.common.net.Server;
 import org.bushe.swing.event.EventBus;
+import org.bushe.swing.event.EventServiceLocator;
 import org.bushe.swing.event.EventSubscriber;
 import org.jdesktop.swingx.auth.LoginService;
+
+import javax.swing.*;
 
 /**
  * This is the login service that takes care for the connection to the server.
@@ -69,7 +73,7 @@ public final class ServerLoginService extends LoginService {
         waitingForNetwork = true;
         loginSuccess = false;
 
-        EventBus.subscribeStrongly(CommunicationEvent.class, new EventSubscriber<CommunicationEvent>() {
+        EventServiceLocator.getSwingEventService().subscribeStrongly(CommunicationEvent.class, new EventSubscriber<CommunicationEvent>() {
             @Override
             public void onEvent(final CommunicationEvent event) {
                 loginSuccess = !(event instanceof DisconnectEvent);
@@ -82,7 +86,7 @@ public final class ServerLoginService extends LoginService {
         netComm.sendCommand(new LoginCmd(name, String.valueOf(password), usedServer.getMonitoringClientVersion()));
         netComm.setupKeepAlive(10000, new KeepAliveCmd());
 
-        while (waitingForNetwork) {
+        while (waitingForNetwork && netComm.isConnected()) {
             try {
                 Thread.sleep(10);
             } catch (final InterruptedException ex) {
@@ -91,6 +95,12 @@ public final class ServerLoginService extends LoginService {
         }
 
         if (loginSuccess) {
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    new MainFrame(netComm, usedServer).setVisible(true);
+                }
+            });
             return true;
         }
         netComm.disconnect();

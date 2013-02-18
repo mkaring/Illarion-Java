@@ -95,16 +95,20 @@ final class Sender extends Thread implements NetCommWriter {
      */
     private final boolean networkDebug;
 
+    private final NetComm parentNetComm;
+
     /**
      * The basic constructor for the sender that sets up all needed data.
      *
+     * @param parent
      * @param outputQueue the list of yet not encoded server commands
      * @param out         the output channel of the socket connection used to send the data to the server
      */
     @SuppressWarnings("nls")
-    Sender(@Nonnull final Config cfg, final BlockingQueue<ClientCommand> outputQueue, final WritableByteChannel out) {
+    Sender(final NetComm parent, @Nonnull final Config cfg, final BlockingQueue<ClientCommand> outputQueue, final WritableByteChannel out) {
         super("Illarion output thread");
 
+        parentNetComm = parent;
         //noinspection AssignmentToCollectionOrArrayFieldFromParameter
         queue = outputQueue;
         outChannel = out;
@@ -264,6 +268,7 @@ final class Sender extends Thread implements NetCommWriter {
             }
         } catch (@Nonnull final Exception e) {
             LOGGER.fatal("General error within the sender", e);
+            parentNetComm.disconnect();
         }
     }
 

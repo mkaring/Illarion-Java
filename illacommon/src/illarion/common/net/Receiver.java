@@ -119,6 +119,12 @@ final class Receiver extends Thread implements NetCommReader {
     private boolean networkDebug;
 
     /**
+     * The parent communication interface.
+     */
+    @Nonnull
+    private final NetComm parentNetComm;
+
+    /**
      * The basic constructor for the receiver that sets up all needed data.
      *
      * @param inputQueue the list of decoded server messages that need to be executed by NetComm
@@ -126,10 +132,12 @@ final class Receiver extends Thread implements NetCommReader {
      *                   be decoded
      */
     @SuppressWarnings("nls")
-    Receiver(@Nonnull final Config cfg, @Nonnull final ServerReplyFactory replyFactory,
-             @Nonnull final BlockingQueue<ServerReply> inputQueue, @Nonnull final ReadableByteChannel in) {
+    Receiver(@Nonnull final NetComm parent, @Nonnull final Config cfg,
+             @Nonnull final ServerReplyFactory replyFactory, @Nonnull final BlockingQueue<ServerReply> inputQueue,
+             @Nonnull final ReadableByteChannel in) {
         super("Illarion input thread");
 
+        parentNetComm = parent;
         this.replyFactory = replyFactory;
 
         networkDebug = cfg.getBoolean(NetComm.CFG_DEBUG_NETWORK_KEY);
@@ -320,6 +328,7 @@ final class Receiver extends Thread implements NetCommReader {
                 if (running) {
                     LOGGER.fatal("The connection to the server is not working anymore.", e);
                     running = false;
+                    parentNetComm.disconnect();
                     return;
                 }
             } catch (@Nonnull final Exception e) {

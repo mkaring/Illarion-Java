@@ -297,8 +297,8 @@ public final class NetComm {
 
             debugProtocol = config.getBoolean(CFG_DEBUG_PROTOCOL_KEY);
 
-            sender = new Sender(config, outputQueue, socket);
-            inputThread = new Receiver(config, replyFactory, inputQueue, socket);
+            sender = new Sender(this, config, outputQueue, socket);
+            inputThread = new Receiver(this, config, replyFactory, inputQueue, socket);
             messageHandler = new MessageExecutor(config, inputQueue);
 
             if (crashHandler != null) {
@@ -353,5 +353,9 @@ public final class NetComm {
         } catch (@Nonnull final InterruptedException e) {
             LOGGER.error("Got interrupted while trying to add a command to to the queue.");
         }
+    }
+
+    public boolean isConnected() {
+        return (socket != null) && socket.isConnected();
     }
 }
