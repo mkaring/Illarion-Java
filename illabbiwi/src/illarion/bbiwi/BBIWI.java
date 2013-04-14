@@ -34,8 +34,6 @@ import org.bushe.swing.event.EventServiceExistsException;
 import org.bushe.swing.event.EventServiceLocator;
 import org.bushe.swing.event.SwingEventService;
 import org.jdesktop.swingx.JXLoginPane;
-import org.pushingpixels.substance.api.SubstanceLookAndFeel;
-import org.pushingpixels.substance.api.skin.OfficeBlue2007Skin;
 
 import javax.annotation.Nullable;
 import javax.swing.*;
@@ -127,7 +125,13 @@ public final class BBIWI {
             @Override
             public void run() {
                 try {
-                    SubstanceLookAndFeel.setSkin(new OfficeBlue2007Skin());
+                    //SubstanceLookAndFeel.setSkin(new OfficeBlue2007Skin());
+                    for (final UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                        if ("Nimbus".equals(info.getName())) {
+                            UIManager.setLookAndFeel(info.getClassName());
+                            break;
+                        }
+                    }
                 } catch (final Exception e) {
                     // nothing
                 }

@@ -18,54 +18,35 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.GenericComEvent;
+import illarion.bbiwi.events.LoginSuccessfulEvent;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
-import illarion.common.types.CharacterId;
-import illarion.common.types.Location;
 import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
- * This message is send by the server to update the information about one character.
+ * This message is send by the server once the login was successfully done.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-@ReplyMessage(replyId = 0x02)
-public final class PlayerMsg extends AbstractReply {
-    /**
-     * The ID of the character that is updated.
-     */
-    private CharacterId charId;
-
-    /**
-     * The name of this character.
-     */
-    private String name;
-
-    /**
-     * The current location of the character.
-     */
-    private Location location;
+@ReplyMessage(replyId = 0x00)
+public final class LoginSuccessfulMsg extends AbstractReply {
+    @Nonnull
+    @Override
+    public String toString() {
+        return toString("");
+    }
 
     @Override
     public void decode(@Nonnull final NetCommReader reader) throws IOException {
-        charId = new CharacterId(reader);
-        name = reader.readString();
-        location = new Location(reader);
+        // nothing to do
     }
 
     @Override
     public boolean executeUpdate() {
-        // TODO: Forward received data to BBIWI
-        EventServiceLocator.getSwingEventService().publish(new GenericComEvent());
+        EventServiceLocator.getSwingEventService().publish(new LoginSuccessfulEvent());
         return true;
-    }
-
-    @Override
-    public String toString() {
-        return toString(charId + " Name: " + name + ' ' + location);
     }
 }

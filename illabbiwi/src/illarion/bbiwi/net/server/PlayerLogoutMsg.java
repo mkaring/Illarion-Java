@@ -18,7 +18,7 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.GenericComEvent;
+import illarion.bbiwi.events.PlayerLogoutEvent;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
@@ -42,13 +42,12 @@ public final class PlayerLogoutMsg extends AbstractReply {
     @Override
     public void decode(@Nonnull final NetCommReader reader) throws IOException {
         charId = new CharacterId(reader);
-        reader.readString(); // TODO: Name of the character shouldn't be send
     }
 
     @Override
     public boolean executeUpdate() {
         // TODO: Forward this message to the GUI
-        EventServiceLocator.getSwingEventService().publish(new GenericComEvent());
+        EventServiceLocator.getSwingEventService().publish(new PlayerLogoutEvent(charId));
         return true;
     }
 

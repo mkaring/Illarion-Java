@@ -40,11 +40,6 @@ public final class PlayerActionMsg extends AbstractReply {
     private CharacterId charId;
 
     /**
-     * The name of this character.
-     */
-    private String name;
-
-    /**
      * The text related to the action.
      */
     private String actionMessage;
@@ -57,7 +52,6 @@ public final class PlayerActionMsg extends AbstractReply {
     @Override
     public void decode(@Nonnull final NetCommReader reader) throws IOException {
         charId = new CharacterId(reader);
-        name = reader.readString();
         actionType = reader.readUByte();
         actionMessage = reader.readString();
     }
@@ -71,6 +65,6 @@ public final class PlayerActionMsg extends AbstractReply {
 
     @Override
     public String toString() {
-        return toString(charId + " Name: " + name + " Message: " + actionMessage);
+        return toString(charId + " Message: " + actionMessage);
     }
 }

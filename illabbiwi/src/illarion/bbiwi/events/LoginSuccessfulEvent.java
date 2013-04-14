@@ -16,28 +16,12 @@
  * You should have received a copy of the GNU General Public License
  * along with the Illarion BBIWI.  If not, see <http://www.gnu.org/licenses/>.
  */
-package illarion.bbiwi.net;
-
-import illarion.bbiwi.net.server.*;
-import illarion.common.net.AbstractReplyFactory;
+package illarion.bbiwi.events;
 
 /**
- * This is the reply factory implementation that stores the replies known to the BBIWI tool.
+ * This event is published once the server confirms the login and the connection is working.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class ReplyFactory extends AbstractReplyFactory {
-    @Override
-    protected void registerReplies() {
-        register(LoginSuccessfulMsg.class);
-        register(DisconnectMsg.class);
-        register(MessageMsg.class);
-        register(PlayerActionMsg.class);
-        register(PlayerAttributeMsg.class);
-        register(PlayerLocationMsg.class);
-        register(PlayerLogoutMsg.class);
-        register(PlayerLoginMsg.class);
-        register(PlayerSkillMsg.class);
-        register(PlayerTalkMsg.class);
-    }
+public class LoginSuccessfulEvent implements CommunicationEvent {
 }

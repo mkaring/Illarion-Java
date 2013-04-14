@@ -18,42 +18,53 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.GenericComEvent;
+import illarion.bbiwi.events.PlayerLoginEvent;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
+import illarion.common.types.Location;
 import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
- * This message is send to inform the tool about the ID of the character the tool is connected with.
+ * This message is send by the server to update the information about one character.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-@ReplyMessage(replyId = 0xCA)
-public final class PersonalIdMsg extends AbstractReply {
+@ReplyMessage(replyId = 0x02)
+public final class PlayerLoginMsg extends AbstractReply {
     /**
-     * The ID if the character, this tool is logged in with.
+     * The ID of the character that is updated.
      */
-    private CharacterId playerId;
+    private CharacterId charId;
 
-    @Nonnull
-    @Override
-    public String toString() {
-        return toString(playerId.toString());
-    }
+    /**
+     * The name of this character.
+     */
+    private String name;
+
+    /**
+     * The current location of the character.
+     */
+    private Location location;
 
     @Override
     public void decode(@Nonnull final NetCommReader reader) throws IOException {
-        playerId = new CharacterId(reader);
+        charId = new CharacterId(reader);
+        name = reader.readString();
+        location = new Location(reader);
     }
 
     @Override
     public boolean executeUpdate() {
-        // TODO: Execute this command
-        EventServiceLocator.getSwingEventService().publish(new GenericComEvent());
+        EventServiceLocator.getSwingEventService().publish(new PlayerLoginEvent(charId, name, location));
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return toString(charId + " Name: " + name + ' ' + location);
     }
 }
