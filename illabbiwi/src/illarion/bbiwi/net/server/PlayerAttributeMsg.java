@@ -18,7 +18,8 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.GenericComEvent;
+import illarion.bbiwi.events.PlayerAttributeEvent;
+import illarion.common.data.CharacterAttribute;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
@@ -58,8 +59,13 @@ public final class PlayerAttributeMsg extends AbstractReply {
 
     @Override
     public boolean executeUpdate() {
-        // TODO: Send Update to BBIWI
-        EventServiceLocator.getSwingEventService().publish(new GenericComEvent());
+        for (@Nonnull final CharacterAttribute attribute : CharacterAttribute.values()) {
+            if (attribute.getServerName().equals(this.attribute)) {
+                EventServiceLocator.getSwingEventService().publish(charId.toString(),
+                        new PlayerAttributeEvent(charId, attribute, value));
+                break;
+            }
+        }
         return true;
     }
 

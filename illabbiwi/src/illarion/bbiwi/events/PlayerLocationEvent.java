@@ -19,34 +19,52 @@
 package illarion.bbiwi.events;
 
 import illarion.common.types.CharacterId;
+import illarion.common.types.Location;
 
 import javax.annotation.Nonnull;
 
 /**
- * This is the event that is fired once a player is logging out. It does not implement the {@link PlayerEvent}
- * interface because its meant for the players list handler.
+ * This is the event that is published on the event bus in case a update of the player location is received.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class PlayerLogoutEvent implements PlayerListEvent {
+public class PlayerLocationEvent implements PlayerEvent {
     /**
-     * The ID of the character that logged out.
+     * The ID of the character effected by this event.
      */
     @Nonnull
     private final CharacterId charId;
 
     /**
-     * Create a new player logout event.
-     *
-     * @param charId the ID of the character
+     * The new location of the player.
      */
-    public PlayerLogoutEvent(@Nonnull final CharacterId charId) {
+    @Nonnull
+    private final Location location;
+
+    /**
+     * Create a new player location update event.
+     *
+     * @param charId   the ID of the effected character
+     * @param location the new location of the player
+     */
+    public PlayerLocationEvent(@Nonnull final CharacterId charId, @Nonnull final Location location) {
         this.charId = charId;
+        this.location = location;
     }
 
-    @Override
     @Nonnull
+    @Override
     public CharacterId getCharId() {
         return charId;
+    }
+
+    /**
+     * Get the new player location.
+     *
+     * @return the new location
+     */
+    @Nonnull
+    public Location getLocation() {
+        return location;
     }
 }

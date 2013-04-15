@@ -18,7 +18,7 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.GenericComEvent;
+import illarion.bbiwi.events.PlayerLocationEvent;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
@@ -53,8 +53,8 @@ public final class PlayerLocationMsg extends AbstractReply {
 
     @Override
     public boolean executeUpdate() {
-        // TODO: Forward received data to BBIWI
-        EventServiceLocator.getSwingEventService().publish(new GenericComEvent());
+        EventServiceLocator.getSwingEventService().publish(charId.toString(),
+                new PlayerLocationEvent(charId, location));
         return true;
     }
 

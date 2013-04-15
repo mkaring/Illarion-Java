@@ -18,10 +18,21 @@
  */
 package illarion.bbiwi.events;
 
+import illarion.common.types.CharacterId;
+
+import javax.annotation.Nonnull;
+
 /**
  * This interface is implemented by all events that are effecting a player list.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
 public interface PlayerListEvent extends CommunicationEvent {
+    /**
+     * Get the ID of the character that is effected by this event.
+     *
+     * @return the character id
+     */
+    @Nonnull
+    CharacterId getCharId();
 }

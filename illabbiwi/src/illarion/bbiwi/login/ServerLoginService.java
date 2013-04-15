@@ -19,9 +19,9 @@
 package illarion.bbiwi.login;
 
 import illarion.bbiwi.BBIWI;
-import illarion.bbiwi.MainFrame;
 import illarion.bbiwi.events.CommunicationEvent;
 import illarion.bbiwi.events.DisconnectEvent;
+import illarion.bbiwi.gui.MainFrame;
 import illarion.bbiwi.net.ReplyFactory;
 import illarion.bbiwi.net.client.KeepAliveCmd;
 import illarion.bbiwi.net.client.LoginCmd;

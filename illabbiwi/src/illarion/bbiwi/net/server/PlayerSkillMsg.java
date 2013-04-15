@@ -18,7 +18,9 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.GenericComEvent;
+import illarion.bbiwi.events.PlayerSkillEvent;
+import illarion.common.data.Skill;
+import illarion.common.data.Skills;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
@@ -64,8 +66,11 @@ public final class PlayerSkillMsg extends AbstractReply {
 
     @Override
     public boolean executeUpdate() {
-        // TODO: Send Update to BBIWI
-        EventServiceLocator.getSwingEventService().publish(new GenericComEvent());
+        final Skill selectedSkill = Skills.getInstance().getSkill(skill);
+        if (selectedSkill != null) {
+            EventServiceLocator.getSwingEventService().publish(charId.toString(),
+                    new PlayerSkillEvent(charId, selectedSkill, value, minor));
+        }
         return true;
     }
 

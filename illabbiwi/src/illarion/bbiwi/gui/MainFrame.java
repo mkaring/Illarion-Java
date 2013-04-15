@@ -16,12 +16,15 @@
  * You should have received a copy of the GNU General Public License
  * along with the Illarion BBIWI.  If not, see <http://www.gnu.org/licenses/>.
  */
-package illarion.bbiwi;
+package illarion.bbiwi.gui;
 
+import illarion.bbiwi.BBIWI;
+import illarion.bbiwi.world.Players;
 import illarion.common.net.NetComm;
 import illarion.common.net.Server;
-import org.jdesktop.swingx.JXTree;
+import org.jdesktop.swingx.JXList;
 
+import javax.annotation.Nonnull;
 import javax.swing.*;
 
 /**
@@ -31,13 +34,18 @@ import javax.swing.*;
  */
 public class MainFrame extends JFrame {
     private final NetComm network;
-    private final JXTree playerList;
+    private final JXList playerList;
+
+    @Nonnull
+    private final Players players;
 
     public MainFrame(final NetComm networkComm, final Server usedServer) {
         super(BBIWI.APPLICATION + ' ' + BBIWI.VERSION);
         network = networkComm;
 
-        playerList = new JXTree();
+        players = new Players();
+
+        playerList = new JXList(players);
         getContentPane().add(new JScrollPane(playerList));
 
         pack();

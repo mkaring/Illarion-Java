@@ -28,15 +28,18 @@ import org.bushe.swing.event.annotation.EventSubscriber;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.HashMap;
-import java.util.Map;
+import javax.swing.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * This class maintains the list of all players on the server.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class Players {
+public final class Players extends AbstractListModel<String> {
     /**
      * The logger that takes care for the logging output of this class.
      */
@@ -47,13 +50,32 @@ public final class Players {
      * This map stores the references to all the players that are currently logged in.
      */
     @Nonnull
-    private final Map<CharacterId, Player> playerMap;
+    private final List<Player> players;
+
+    /**
+     * This map stores the references to the players that were online but are offline now.
+     */
+    @Nonnull
+    private final List<Player> offlinePlayers;
+
+    /**
+     * The comparator used to sort the player list.
+     */
+    @Nonnull
+    private final Comparator<Player> playerComparator;
 
     /**
      * Create a new instance of the players list.
      */
     public Players() {
-        playerMap = new HashMap<CharacterId, Player>();
+        players = new ArrayList<Player>();
+        offlinePlayers = new ArrayList<Player>();
+        playerComparator = new Comparator<Player>() {
+            @Override
+            public int compare(final Player player1, final Player player2) {
+                return player1.getName().compareTo(player2.getName());
+            }
+        };
 
         AnnotationProcessor.process(this);
     }
@@ -66,7 +88,35 @@ public final class Players {
      */
     @Nullable
     public Player getPlayer(@Nonnull final CharacterId id) {
-        return playerMap.get(id);
+        for (@Nonnull final Player player : players) {
+            if (player.getCharacterId().equals(id)) {
+                return player;
+            }
+        }
+        for (@Nonnull final Player player : offlinePlayers) {
+            if (player.getCharacterId().equals(id)) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get a who is online player.
+     *
+     * @param index the index of the player
+     * @return the player
+     */
+    @Nonnull
+    public Player getOnlinePlayer(final int index) {
+        int cnt = 0;
+        for (@Nonnull final Player player : players) {
+            if (index == cnt) {
+                return player;
+            }
+            cnt++;
+        }
+        throw new IndexOutOfBoundsException("Index out of bounds: " + index);
     }
 
     /**
@@ -80,9 +130,20 @@ public final class Players {
         Player player = getPlayer(event.getCharId());
         if (player == null) {
             player = new Player(event.getCharId(), event.getName());
-            playerMap.put(event.getCharId(), player);
+            final int insertIndex = Collections.binarySearch(players, player, playerComparator);
+            if (insertIndex < 0) {
+                players.add(-insertIndex - 1, player);
+                fireIntervalAdded(this, -insertIndex - 1, -insertIndex - 1);
+            } else {
+                players.set(insertIndex, player);
+                fireContentsChanged(this, insertIndex, insertIndex);
+            }
         } else {
             player.setName(event.getName());
+            if (offlinePlayers.remove(player)) {
+                players.add(player);
+                fireIntervalAdded(this, 0, players.size());
+            }
         }
         player.setLocation(event.getLocation());
         player.setOnline(true);
@@ -101,6 +162,32 @@ public final class Players {
             LOGGER.warn("Logout received for a character that was not even logged in.");
         } else {
             player.setOnline(false);
+
+            final int removeIndex = players.indexOf(player);
+            if (removeIndex >= 0) {
+                players.remove(removeIndex);
+                offlinePlayers.add(player);
+                fireIntervalRemoved(this, removeIndex, removeIndex);
+            }
         }
+    }
+
+    /**
+     * Get the amount of players.
+     *
+     * @return the amount of players
+     */
+    public int getOnlinePlayerCount() {
+        return players.size();
+    }
+
+    @Override
+    public int getSize() {
+        return getOnlinePlayerCount();
+    }
+
+    @Override
+    public String getElementAt(final int index) {
+        return getOnlinePlayer(index).getName();
     }
 }

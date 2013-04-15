@@ -18,72 +18,69 @@
  */
 package illarion.bbiwi.events;
 
+import illarion.common.data.CharacterAttribute;
 import illarion.common.types.CharacterId;
-import illarion.common.types.Location;
 
 import javax.annotation.Nonnull;
 
 /**
- * This is the event that is fired once a player is logging in. It does not implement the {@link PlayerEvent}
- * interface because its meant for the players list handler.
+ * This is the event that is published on the event bus in case a update of the player attributes is received.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class PlayerLoginEvent implements PlayerListEvent {
+public class PlayerAttributeEvent implements PlayerEvent {
     /**
-     * The ID of the character that is updated.
+     * The ID of the character effected by this event.
      */
     @Nonnull
     private final CharacterId charId;
 
     /**
-     * The name of this character.
+     * The attribute that is effected by this event.
      */
     @Nonnull
-    private final String name;
+    private final CharacterAttribute attribute;
 
     /**
-     * The current location of the character.
+     * The new value of the attribute.
      */
-    @Nonnull
-    private final Location location;
+    private final int value;
 
     /**
-     * Create a new player login event.
+     * Create a new player attribute update event.
      *
-     * @param charId   the ID of the character
-     * @param name     the name of the character
-     * @param location the location of the character
+     * @param charId    the ID of the effected character
+     * @param attribute the attribute that is updated
+     * @param value     the new value of the attribute
      */
-    public PlayerLoginEvent(@Nonnull final CharacterId charId, @Nonnull final String name, @Nonnull final Location location) {
+    public PlayerAttributeEvent(@Nonnull final CharacterId charId, @Nonnull final CharacterAttribute attribute, final int value) {
         this.charId = charId;
-        this.name = name;
-        this.location = location;
+        this.attribute = attribute;
+        this.value = value;
     }
 
-    @Override
     @Nonnull
+    @Override
     public CharacterId getCharId() {
         return charId;
     }
 
     /**
-     * Get the name of the character.
+     * Get the attribute that is updated by this event.
      *
-     * @return the name of the character
+     * @return the updated attribute
      */
     @Nonnull
-    public String getName() {
-        return name;
+    public CharacterAttribute getAttribute() {
+        return attribute;
     }
 
     /**
-     * Get the location of the character.
+     * Get the new value of the attribute.
      *
-     * @return the location of the character
+     * @return the new attribute value
      */
-    @Nonnull
-    public Location getLocation() {
-        return location;
+    public int getValue() {
+        return value;
     }
 }

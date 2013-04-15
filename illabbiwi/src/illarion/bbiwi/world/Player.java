@@ -18,10 +18,16 @@
  */
 package illarion.bbiwi.world;
 
+import illarion.bbiwi.events.PlayerAttributeEvent;
+import illarion.bbiwi.events.PlayerEvent;
+import illarion.bbiwi.events.PlayerLocationEvent;
+import illarion.bbiwi.events.PlayerSkillEvent;
 import illarion.common.data.CharacterAttribute;
 import illarion.common.data.Skill;
 import illarion.common.types.CharacterId;
 import illarion.common.types.Location;
+import org.bushe.swing.event.EventServiceLocator;
+import org.bushe.swing.event.EventTopicSubscriber;
 
 import javax.annotation.Nonnull;
 import java.util.EnumMap;
@@ -33,7 +39,7 @@ import java.util.Map;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class Player {
+public class Player implements EventTopicSubscriber<PlayerEvent> {
     /**
      * The character ID of the player.
      */
@@ -81,6 +87,8 @@ public class Player {
         location = new Location();
         attributes = new EnumMap<CharacterAttribute, Integer>(CharacterAttribute.class);
         skills = new HashMap<Skill, Integer>();
+
+        EventServiceLocator.getSwingEventService().subscribe(characterId.toString(), this);
     }
 
     /**
@@ -108,5 +116,53 @@ public class Player {
      */
     public void setName(@Nonnull final String newName) {
         name = newName;
+    }
+
+    @Override
+    public void onEvent(@Nonnull final String topic, @Nonnull final PlayerEvent data) {
+        if (!topic.equals(characterId.toString())) {
+            return;
+        }
+        if (data.getCharId().equals(characterId)) {
+            if (data instanceof PlayerSkillEvent) {
+                updateSkill((PlayerSkillEvent) data);
+            } else if (data instanceof PlayerAttributeEvent) {
+                updateAttribute((PlayerAttributeEvent) data);
+            } else if (data instanceof PlayerLocationEvent) {
+                setLocation(((PlayerLocationEvent) data).getLocation());
+            }
+        }
+    }
+
+    /**
+     * Update the skill data by the values stored in the received event.
+     *
+     * @param event the new skill data
+     */
+    private void updateSkill(@Nonnull final PlayerSkillEvent event) {
+        skills.put(event.getSkill(), event.getValue());
+    }
+
+    /**
+     * Update the skill data by the values stored in the received event.
+     *
+     * @param event the new skill data
+     */
+    private void updateAttribute(@Nonnull final PlayerAttributeEvent event) {
+        attributes.put(event.getAttribute(), event.getValue());
+    }
+
+    @Nonnull
+    public String getName() {
+        return name;
+    }
+
+    @Nonnull
+    public CharacterId getCharacterId() {
+        return characterId;
+    }
+
+    public boolean isOnline() {
+        return online;
     }
 }
