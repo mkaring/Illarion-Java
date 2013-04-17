@@ -23,6 +23,7 @@ import illarion.bbiwi.world.Players;
 import illarion.common.net.NetComm;
 import illarion.common.net.Server;
 import org.jdesktop.swingx.JXList;
+import org.jdesktop.swingx.renderer.DefaultListRenderer;
 
 import javax.annotation.Nonnull;
 import javax.swing.*;
@@ -46,6 +47,7 @@ public class MainFrame extends JFrame {
         players = new Players();
 
         playerList = new JXList(players);
+        playerList.setCellRenderer(new DefaultListRenderer(new PlayerComponentProvider()));
         getContentPane().add(new JScrollPane(playerList));
 
         pack();

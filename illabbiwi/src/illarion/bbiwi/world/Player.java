@@ -76,17 +76,26 @@ public class Player implements EventTopicSubscriber<PlayerEvent> {
     private boolean online;
 
     /**
+     * The parent player list.
+     */
+    @Nonnull
+    private final Players playerList;
+
+    /**
      * Create a new player character.
      *
-     * @param id   the ID of the character
-     * @param name the name of the character
+     * @param parentList the player list this player object belongs to
+     * @param id         the ID of the character
+     * @param name       the name of the character
      */
-    public Player(@Nonnull final CharacterId id, @Nonnull final String name) {
+    public Player(@Nonnull final Players parentList, @Nonnull final CharacterId id, @Nonnull final String name) {
         characterId = id;
         this.name = name;
         location = new Location();
         attributes = new EnumMap<CharacterAttribute, Integer>(CharacterAttribute.class);
         skills = new HashMap<Skill, Integer>();
+
+        playerList = parentList;
 
         EventServiceLocator.getSwingEventService().subscribe(characterId.toString(), this);
     }
@@ -98,6 +107,7 @@ public class Player implements EventTopicSubscriber<PlayerEvent> {
      */
     public void setLocation(@Nonnull final Location loc) {
         location.set(loc);
+        playerList.reportPlayerChanged(this);
     }
 
     /**
@@ -141,6 +151,7 @@ public class Player implements EventTopicSubscriber<PlayerEvent> {
      */
     private void updateSkill(@Nonnull final PlayerSkillEvent event) {
         skills.put(event.getSkill(), event.getValue());
+        playerList.reportPlayerChanged(this);
     }
 
     /**
@@ -150,6 +161,7 @@ public class Player implements EventTopicSubscriber<PlayerEvent> {
      */
     private void updateAttribute(@Nonnull final PlayerAttributeEvent event) {
         attributes.put(event.getAttribute(), event.getValue());
+        playerList.reportPlayerChanged(this);
     }
 
     @Nonnull
@@ -164,5 +176,17 @@ public class Player implements EventTopicSubscriber<PlayerEvent> {
 
     public boolean isOnline() {
         return online;
+    }
+
+    public int getAttribute(@Nonnull final CharacterAttribute attribute) {
+        if (attributes.containsKey(attribute)) {
+            return attributes.get(attribute);
+        }
+        return 0;
+    }
+
+    @Nonnull
+    public Location getLocation() {
+        return location;
     }
 }

@@ -39,7 +39,7 @@ import java.util.List;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class Players extends AbstractListModel<String> {
+public final class Players extends AbstractListModel<Player> {
     /**
      * The logger that takes care for the logging output of this class.
      */
@@ -119,6 +119,13 @@ public final class Players extends AbstractListModel<String> {
         throw new IndexOutOfBoundsException("Index out of bounds: " + index);
     }
 
+    public void reportPlayerChanged(@Nonnull final Player player) {
+        final int index = players.indexOf(player);
+        if (index >= 0) {
+            fireContentsChanged(this, index, index);
+        }
+    }
+
     /**
      * Handle player login events.
      *
@@ -129,7 +136,7 @@ public final class Players extends AbstractListModel<String> {
     public void onPlayerLoginEvent(@Nonnull final PlayerLoginEvent event) {
         Player player = getPlayer(event.getCharId());
         if (player == null) {
-            player = new Player(event.getCharId(), event.getName());
+            player = new Player(this, event.getCharId(), event.getName());
             final int insertIndex = Collections.binarySearch(players, player, playerComparator);
             if (insertIndex < 0) {
                 players.add(-insertIndex - 1, player);
@@ -187,7 +194,7 @@ public final class Players extends AbstractListModel<String> {
     }
 
     @Override
-    public String getElementAt(final int index) {
-        return getOnlinePlayer(index).getName();
+    public Player getElementAt(final int index) {
+        return getOnlinePlayer(index);
     }
 }
