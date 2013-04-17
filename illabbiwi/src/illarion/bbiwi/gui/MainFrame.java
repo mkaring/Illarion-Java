@@ -27,6 +27,8 @@ import org.jdesktop.swingx.renderer.DefaultListRenderer;
 
 import javax.annotation.Nonnull;
 import javax.swing.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 /**
  * This is the main frame ob the BBIWI.
@@ -34,7 +36,6 @@ import javax.swing.*;
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
 public class MainFrame extends JFrame {
-    private final NetComm network;
     private final JXList playerList;
 
     @Nonnull
@@ -42,13 +43,20 @@ public class MainFrame extends JFrame {
 
     public MainFrame(final NetComm networkComm, final Server usedServer) {
         super(BBIWI.APPLICATION + ' ' + BBIWI.VERSION);
-        network = networkComm;
 
         players = new Players();
 
         playerList = new JXList(players);
         playerList.setCellRenderer(new DefaultListRenderer(new PlayerComponentProvider()));
         getContentPane().add(new JScrollPane(playerList));
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(final WindowEvent e) {
+                networkComm.disconnect();
+                dispose();
+            }
+        });
 
         pack();
     }
