@@ -18,16 +18,10 @@
  */
 package illarion.bbiwi.world;
 
-import illarion.bbiwi.events.PlayerAttributeEvent;
-import illarion.bbiwi.events.PlayerEvent;
-import illarion.bbiwi.events.PlayerLocationEvent;
-import illarion.bbiwi.events.PlayerSkillEvent;
 import illarion.common.data.CharacterAttribute;
 import illarion.common.data.Skill;
 import illarion.common.types.CharacterId;
 import illarion.common.types.Location;
-import org.bushe.swing.event.EventServiceLocator;
-import org.bushe.swing.event.EventTopicSubscriber;
 
 import javax.annotation.Nonnull;
 import java.util.EnumMap;
@@ -39,7 +33,7 @@ import java.util.Map;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class Player implements EventTopicSubscriber<PlayerEvent> {
+public class Player {
     /**
      * The character ID of the player.
      */
@@ -86,18 +80,14 @@ public class Player implements EventTopicSubscriber<PlayerEvent> {
      *
      * @param parentList the player list this player object belongs to
      * @param id         the ID of the character
-     * @param name       the name of the character
      */
-    public Player(@Nonnull final Players parentList, @Nonnull final CharacterId id, @Nonnull final String name) {
+    public Player(@Nonnull final Players parentList, @Nonnull final CharacterId id) {
         characterId = id;
-        this.name = name;
         location = new Location();
         attributes = new EnumMap<CharacterAttribute, Integer>(CharacterAttribute.class);
         skills = new HashMap<Skill, Integer>();
 
         playerList = parentList;
-
-        EventServiceLocator.getSwingEventService().subscribe(characterId.toString(), this);
     }
 
     /**
@@ -107,7 +97,6 @@ public class Player implements EventTopicSubscriber<PlayerEvent> {
      */
     public void setLocation(@Nonnull final Location loc) {
         location.set(loc);
-        playerList.reportPlayerChanged(this);
     }
 
     /**
@@ -117,6 +106,11 @@ public class Player implements EventTopicSubscriber<PlayerEvent> {
      */
     public void setOnline(final boolean on) {
         online = on;
+        if (online) {
+            playerList.addPlayerToOnlineList(this);
+        } else {
+            playerList.addPlayerToOfflineList(this);
+        }
     }
 
     /**
@@ -128,40 +122,12 @@ public class Player implements EventTopicSubscriber<PlayerEvent> {
         name = newName;
     }
 
-    @Override
-    public void onEvent(@Nonnull final String topic, @Nonnull final PlayerEvent data) {
-        if (!topic.equals(characterId.toString())) {
-            return;
-        }
-        if (data.getCharId().equals(characterId)) {
-            if (data instanceof PlayerSkillEvent) {
-                updateSkill((PlayerSkillEvent) data);
-            } else if (data instanceof PlayerAttributeEvent) {
-                updateAttribute((PlayerAttributeEvent) data);
-            } else if (data instanceof PlayerLocationEvent) {
-                setLocation(((PlayerLocationEvent) data).getLocation());
-            }
-        }
+    public void setSkill(@Nonnull final Skill skill, final int value) {
+        skills.put(skill, value);
     }
 
-    /**
-     * Update the skill data by the values stored in the received event.
-     *
-     * @param event the new skill data
-     */
-    private void updateSkill(@Nonnull final PlayerSkillEvent event) {
-        skills.put(event.getSkill(), event.getValue());
-        playerList.reportPlayerChanged(this);
-    }
-
-    /**
-     * Update the skill data by the values stored in the received event.
-     *
-     * @param event the new skill data
-     */
-    private void updateAttribute(@Nonnull final PlayerAttributeEvent event) {
-        attributes.put(event.getAttribute(), event.getValue());
-        playerList.reportPlayerChanged(this);
+    public void setAttribute(@Nonnull final CharacterAttribute attribute, final int value) {
+        attributes.put(attribute, value);
     }
 
     @Nonnull

@@ -18,13 +18,13 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.PlayerSkillEvent;
+import illarion.bbiwi.BBIWI;
+import illarion.bbiwi.world.Player;
 import illarion.common.data.Skill;
 import illarion.common.data.Skills;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
-import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -68,8 +68,8 @@ public final class PlayerSkillMsg extends AbstractReply {
     public boolean executeUpdate() {
         final Skill selectedSkill = Skills.getInstance().getSkill(skill);
         if (selectedSkill != null) {
-            EventServiceLocator.getSwingEventService().publish(charId.toString(),
-                    new PlayerSkillEvent(charId, selectedSkill, value, minor));
+            final Player player = BBIWI.getPlayers().getPlayer(charId);
+            player.setSkill(selectedSkill, value);
         }
         return true;
     }

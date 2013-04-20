@@ -19,8 +19,6 @@
 package illarion.bbiwi.login;
 
 import illarion.bbiwi.BBIWI;
-import illarion.bbiwi.events.CommunicationEvent;
-import illarion.bbiwi.events.DisconnectEvent;
 import illarion.bbiwi.gui.MainFrame;
 import illarion.bbiwi.net.ReplyFactory;
 import illarion.bbiwi.net.client.KeepAliveCmd;
@@ -28,11 +26,10 @@ import illarion.bbiwi.net.client.LoginCmd;
 import illarion.common.config.Config;
 import illarion.common.net.NetComm;
 import illarion.common.net.Server;
-import org.bushe.swing.event.EventBus;
-import org.bushe.swing.event.EventServiceLocator;
-import org.bushe.swing.event.EventSubscriber;
 import org.jdesktop.swingx.auth.LoginService;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.swing.*;
 
 /**
@@ -59,46 +56,35 @@ public final class ServerLoginService extends LoginService {
     public boolean authenticate(final String name, final char[] password, final String server) throws Exception {
         final NetComm netComm = new NetComm(config);
 
-        final Server usedServer;
-        if (BBIWI.TEST_SERVER.equals(server)) {
-            usedServer = Server.TestServer;
-        } else {
-            usedServer = Server.RealServer;
+        @Nullable Server usedServer = null;
+        for (@Nonnull final Server checkServer : Server.values()) {
+            if (checkServer.getServerNameEnglish().equals(server)) {
+                usedServer = checkServer;
+                break;
+            }
+        }
+        if (usedServer == null) {
+            return false;
         }
 
         if (!netComm.connect(usedServer.getServerHost(), usedServer.getServerPort(), new ReplyFactory(), null)) {
             return false;
         }
 
-        waitingForNetwork = true;
-        loginSuccess = false;
-
-        EventServiceLocator.getSwingEventService().subscribeStrongly(CommunicationEvent.class, new EventSubscriber<CommunicationEvent>() {
-            @Override
-            public void onEvent(final CommunicationEvent event) {
-                loginSuccess = !(event instanceof DisconnectEvent);
-                waitingForNetwork = false;
-                EventBus.unsubscribe(CommunicationEvent.class, this);
-            }
-        });
-
+        BBIWI.getConnectionMonitor().startLogin(netComm);
 
         netComm.sendCommand(new LoginCmd(name, String.valueOf(password), usedServer.getMonitoringClientVersion()));
         netComm.setupKeepAlive(10000, new KeepAliveCmd());
 
-        while (waitingForNetwork && netComm.isConnected()) {
-            try {
-                Thread.sleep(10);
-            } catch (final InterruptedException ex) {
-                netComm.disconnect();
-            }
-        }
+        BBIWI.getConnectionMonitor().waitUntilLoginDone(4000);
 
-        if (loginSuccess) {
+        if (BBIWI.getConnectionMonitor().isLoginSuccessful()) {
             SwingUtilities.invokeLater(new Runnable() {
                 @Override
                 public void run() {
-                    new MainFrame(netComm, usedServer).setVisible(true);
+                    final MainFrame frame = new MainFrame();
+                    BBIWI.setMainGui(frame);
+                    frame.setVisible(true);
                 }
             });
             return true;
@@ -106,7 +92,4 @@ public final class ServerLoginService extends LoginService {
         netComm.disconnect();
         return false;
     }
-
-    private boolean waitingForNetwork;
-    private boolean loginSuccess;
 }

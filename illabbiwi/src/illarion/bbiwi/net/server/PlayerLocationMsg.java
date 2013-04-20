@@ -18,12 +18,12 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.PlayerLocationEvent;
+import illarion.bbiwi.BBIWI;
+import illarion.bbiwi.world.Player;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
 import illarion.common.types.Location;
-import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -53,8 +53,8 @@ public final class PlayerLocationMsg extends AbstractReply {
 
     @Override
     public boolean executeUpdate() {
-        EventServiceLocator.getSwingEventService().publish(charId.toString(),
-                new PlayerLocationEvent(charId, location));
+        final Player player = BBIWI.getPlayers().getPlayer(charId);
+        player.setLocation(location);
         return true;
     }
 

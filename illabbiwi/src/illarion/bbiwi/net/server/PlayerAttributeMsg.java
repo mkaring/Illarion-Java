@@ -18,12 +18,12 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.PlayerAttributeEvent;
+import illarion.bbiwi.BBIWI;
+import illarion.bbiwi.world.Player;
 import illarion.common.data.CharacterAttribute;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
-import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -61,8 +61,8 @@ public final class PlayerAttributeMsg extends AbstractReply {
     public boolean executeUpdate() {
         for (@Nonnull final CharacterAttribute attribute : CharacterAttribute.values()) {
             if (attribute.getServerName().equals(this.attribute)) {
-                EventServiceLocator.getSwingEventService().publish(charId.toString(),
-                        new PlayerAttributeEvent(charId, attribute, value));
+                final Player player = BBIWI.getPlayers().getPlayer(charId);
+                player.setAttribute(attribute, value);
                 break;
             }
         }

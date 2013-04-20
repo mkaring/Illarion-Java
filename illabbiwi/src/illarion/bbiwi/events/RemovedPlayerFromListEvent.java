@@ -18,53 +18,56 @@
  */
 package illarion.bbiwi.events;
 
-import illarion.common.types.CharacterId;
-import illarion.common.types.Location;
+import illarion.bbiwi.world.Player;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.Immutable;
 
 /**
- * This is the event that is published on the event bus in case a update of the player location is received.
+ * This event is fired in case a player is removed from the online list.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class PlayerLocationEvent implements PlayerEvent {
+@Immutable
+public class RemovedPlayerFromListEvent {
     /**
-     * The ID of the character effected by this event.
+     * The index where the player is removed from the list.
      */
-    @Nonnull
-    private final CharacterId charId;
+    private final int index;
 
     /**
-     * The new location of the player.
+     * The new player itself.
      */
     @Nonnull
-    private final Location location;
+    private final Player player;
 
     /**
-     * Create a new player location update event.
+     * Create a new event.
      *
-     * @param charId   the ID of the effected character
-     * @param location the new location of the player
+     * @param index  the index of the player on the list
+     * @param player the new player
      */
-    public PlayerLocationEvent(@Nonnull final CharacterId charId, @Nonnull final Location location) {
-        this.charId = charId;
-        this.location = location;
-    }
-
-    @Nonnull
-    @Override
-    public CharacterId getCharId() {
-        return charId;
+    public RemovedPlayerFromListEvent(final int index, @Nonnull final Player player) {
+        this.index = index;
+        this.player = player;
     }
 
     /**
-     * Get the new player location.
+     * Get the index of the player on the list of online players.
      *
-     * @return the new location
+     * @return the index
+     */
+    public int getIndex() {
+        return index;
+    }
+
+    /**
+     * Get the player that disappears from the list.
+     *
+     * @return the player
      */
     @Nonnull
-    public Location getLocation() {
-        return location;
+    public Player getPlayer() {
+        return player;
     }
 }

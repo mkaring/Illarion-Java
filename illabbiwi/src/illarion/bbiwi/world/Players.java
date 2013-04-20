@@ -18,17 +18,14 @@
  */
 package illarion.bbiwi.world;
 
-import illarion.bbiwi.events.PlayerLoginEvent;
-import illarion.bbiwi.events.PlayerLogoutEvent;
+import illarion.bbiwi.events.NewPlayerOnListEvent;
+import illarion.bbiwi.events.RemovedPlayerFromListEvent;
 import illarion.common.types.CharacterId;
 import org.apache.log4j.Logger;
 import org.bushe.swing.event.EventServiceLocator;
 import org.bushe.swing.event.annotation.AnnotationProcessor;
-import org.bushe.swing.event.annotation.EventSubscriber;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.swing.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -39,7 +36,7 @@ import java.util.List;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class Players extends AbstractListModel<Player> {
+public final class Players {
     /**
      * The logger that takes care for the logging output of this class.
      */
@@ -84,9 +81,9 @@ public final class Players extends AbstractListModel<Player> {
      * Get a player.
      *
      * @param id the ID of the player
-     * @return the player or {@code null} in case the player is not known
+     * @return the player
      */
-    @Nullable
+    @Nonnull
     public Player getPlayer(@Nonnull final CharacterId id) {
         for (@Nonnull final Player player : players) {
             if (player.getCharacterId().equals(id)) {
@@ -98,7 +95,7 @@ public final class Players extends AbstractListModel<Player> {
                 return player;
             }
         }
-        return null;
+        return new Player(this, id);
     }
 
     /**
@@ -119,64 +116,39 @@ public final class Players extends AbstractListModel<Player> {
         throw new IndexOutOfBoundsException("Index out of bounds: " + index);
     }
 
-    public void reportPlayerChanged(@Nonnull final Player player) {
-        final int index = players.indexOf(player);
-        if (index >= 0) {
-            fireContentsChanged(this, index, index);
+    /**
+     * Add a player to the list of online players.
+     *
+     * @param player the player that is now online
+     */
+    public void addPlayerToOnlineList(@Nonnull final Player player) {
+        offlinePlayers.remove(player);
+
+        final int insertIndex = Collections.binarySearch(players, player, playerComparator);
+        if (insertIndex < 0) {
+            players.add(-insertIndex - 1, player);
+            publish(new NewPlayerOnListEvent(-insertIndex - 1, player));
         }
     }
 
     /**
-     * Handle player login events.
+     * Add a player to the list of offline players.
      *
-     * @param event the login event
+     * @param player the player to move to the list of offline players
      */
-    @EventSubscriber(eventClass = PlayerLoginEvent.class,
-            eventServiceName = EventServiceLocator.SERVICE_NAME_SWING_EVENT_SERVICE)
-    public void onPlayerLoginEvent(@Nonnull final PlayerLoginEvent event) {
-        Player player = getPlayer(event.getCharId());
-        if (player == null) {
-            player = new Player(this, event.getCharId(), event.getName());
-            final int insertIndex = Collections.binarySearch(players, player, playerComparator);
-            if (insertIndex < 0) {
-                players.add(-insertIndex - 1, player);
-                fireIntervalAdded(this, -insertIndex - 1, -insertIndex - 1);
-            } else {
-                players.set(insertIndex, player);
-                fireContentsChanged(this, insertIndex, insertIndex);
-            }
-        } else {
-            player.setName(event.getName());
-            if (offlinePlayers.remove(player)) {
-                players.add(player);
-                fireIntervalAdded(this, 0, players.size());
-            }
+    public void addPlayerToOfflineList(@Nonnull final Player player) {
+        final int playerIndex = Collections.binarySearch(players, player, playerComparator);
+        if (playerIndex >= 0) {
+            players.remove(playerIndex);
+            publish(new RemovedPlayerFromListEvent(playerIndex, player));
         }
-        player.setLocation(event.getLocation());
-        player.setOnline(true);
+        if (!offlinePlayers.contains(player)) {
+            offlinePlayers.add(player);
+        }
     }
 
-    /**
-     * Handle player logout events.
-     *
-     * @param event the logout event
-     */
-    @EventSubscriber(eventClass = PlayerLogoutEvent.class,
-            eventServiceName = EventServiceLocator.SERVICE_NAME_SWING_EVENT_SERVICE)
-    public void onPlayerLogoutEvent(@Nonnull final PlayerLogoutEvent event) {
-        final Player player = getPlayer(event.getCharId());
-        if (player == null) {
-            LOGGER.warn("Logout received for a character that was not even logged in.");
-        } else {
-            player.setOnline(false);
-
-            final int removeIndex = players.indexOf(player);
-            if (removeIndex >= 0) {
-                players.remove(removeIndex);
-                offlinePlayers.add(player);
-                fireIntervalRemoved(this, removeIndex, removeIndex);
-            }
-        }
+    private static void publish(@Nonnull final Object event) {
+        EventServiceLocator.getSwingEventService().publish(event);
     }
 
     /**
@@ -186,15 +158,5 @@ public final class Players extends AbstractListModel<Player> {
      */
     public int getOnlinePlayerCount() {
         return players.size();
-    }
-
-    @Override
-    public int getSize() {
-        return getOnlinePlayerCount();
-    }
-
-    @Override
-    public Player getElementAt(final int index) {
-        return getOnlinePlayer(index);
     }
 }

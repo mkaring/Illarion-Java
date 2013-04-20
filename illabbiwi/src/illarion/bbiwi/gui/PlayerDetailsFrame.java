@@ -16,37 +16,31 @@
  * You should have received a copy of the GNU General Public License
  * along with the Illarion BBIWI.  If not, see <http://www.gnu.org/licenses/>.
  */
-package illarion.bbiwi.events;
+package illarion.bbiwi.gui;
 
-import illarion.common.types.CharacterId;
+import illarion.bbiwi.world.Player;
+import org.jdesktop.swingx.JXFrame;
 
 import javax.annotation.Nonnull;
 
 /**
- * This is the event that is fired once a player is logging out. It does not implement the {@link PlayerEvent}
- * interface because its meant for the players list handler.
+ * This frame contains details regarding a single player.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class PlayerLogoutEvent implements PlayerListEvent {
+public class PlayerDetailsFrame extends JXFrame {
     /**
-     * The ID of the character that logged out.
+     * The player that is shown in this frame.
      */
-    @Nonnull
-    private final CharacterId charId;
+    private final Player player;
 
     /**
-     * Create a new player logout event.
+     * Create a new player details frame and set the player that is supposed to be displayed in this frame.
      *
-     * @param charId the ID of the character
+     * @param player the player to display
      */
-    public PlayerLogoutEvent(@Nonnull final CharacterId charId) {
-        this.charId = charId;
-    }
-
-    @Override
-    @Nonnull
-    public CharacterId getCharId() {
-        return charId;
+    public PlayerDetailsFrame(@Nonnull final Player player) {
+        super(player.getName());
+        this.player = player;
     }
 }

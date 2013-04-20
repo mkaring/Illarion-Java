@@ -19,12 +19,16 @@
 package illarion.bbiwi;
 
 import illarion.bbiwi.crash.DefaultCrashHandler;
+import illarion.bbiwi.gui.MainFrame;
 import illarion.bbiwi.login.PasswordStorage;
 import illarion.bbiwi.login.ServerLoginService;
 import illarion.bbiwi.login.UserNameStorage;
+import illarion.bbiwi.net.ConnectionMonitor;
+import illarion.bbiwi.world.Players;
 import illarion.common.config.Config;
 import illarion.common.config.ConfigSystem;
 import illarion.common.net.NetComm;
+import illarion.common.net.Server;
 import illarion.common.util.DirectoryManager;
 import illarion.common.util.JavaLogToLog4J;
 import illarion.common.util.StdOutToLog4J;
@@ -34,7 +38,10 @@ import org.bushe.swing.event.EventServiceExistsException;
 import org.bushe.swing.event.EventServiceLocator;
 import org.bushe.swing.event.SwingEventService;
 import org.jdesktop.swingx.JXLoginPane;
+import org.pushingpixels.substance.api.SubstanceLookAndFeel;
+import org.pushingpixels.substance.api.skin.OfficeBlack2007Skin;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.swing.*;
 import java.awt.*;
@@ -72,6 +79,18 @@ public final class BBIWI {
      * The configuration system used by the BBIWI.
      */
     private static ConfigSystem configSystem;
+
+    /**
+     * The list of players.
+     */
+    @Nullable
+    private static Players players;
+
+    /**
+     * Get the connection monitor that keeps track of the connection status.
+     */
+    @Nonnull
+    private static ConnectionMonitor connectionMonitor;
 
     /**
      * Initialize the configuration system.
@@ -117,28 +136,33 @@ public final class BBIWI {
             e.printStackTrace(System.err);
         }
 
-        JFrame.setDefaultLookAndFeelDecorated(true);
-        JDialog.setDefaultLookAndFeelDecorated(true);
+        players = new Players();
+        connectionMonitor = new ConnectionMonitor();
 
         SwingUtilities.invokeLater(new Runnable() {
             @SuppressWarnings("synthetic-access")
             @Override
             public void run() {
                 try {
-                    //SubstanceLookAndFeel.setSkin(new OfficeBlue2007Skin());
-                    for (final UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                    SubstanceLookAndFeel.setSkin(new OfficeBlack2007Skin());
+                    JFrame.setDefaultLookAndFeelDecorated(true);
+                    JDialog.setDefaultLookAndFeelDecorated(true);
+                    System.setProperty("awt.useSystemAAFontSettings", "on");
+                    System.setProperty("swing.aatext", "true");
+                    /*for (final UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
                         if ("Nimbus".equals(info.getName())) {
                             UIManager.setLookAndFeel(info.getClassName());
                             break;
                         }
-                    }
+                    }*/
                 } catch (final Exception e) {
                     // nothing
                 }
 
                 final List<String> serverList = new ArrayList<String>();
-                serverList.add(REAL_SERVER);
-                serverList.add(TEST_SERVER);
+                for (@Nonnull final Server server : Server.values()) {
+                    serverList.add(server.getServerNameEnglish());
+                }
                 final JXLoginPane loginPane = new JXLoginPane(new ServerLoginService(configSystem),
                         new PasswordStorage(configSystem), new UserNameStorage(configSystem), serverList);
                 final JXLoginPane.JXLoginDialog loginDialog = new JXLoginPane.JXLoginDialog((Frame) null, loginPane);
@@ -152,8 +176,10 @@ public final class BBIWI {
         });
     }
 
-    public static final String REAL_SERVER = "Illarion Server";
-    public static final String TEST_SERVER = "Test Server";
+    @Nonnull
+    public static ConnectionMonitor getConnectionMonitor() {
+        return connectionMonitor;
+    }
 
     /**
      * Basic initialization of the log files and the debug settings.
@@ -180,6 +206,36 @@ public final class BBIWI {
         java.util.logging.Logger.getLogger("javolution").setLevel(Level.SEVERE);
         JavaLogToLog4J.setup();
         StdOutToLog4J.setup();
+    }
+
+    @Nullable
+    private static MainFrame mainGui;
+
+    @SuppressWarnings("NullableProblems")
+    public static void setMainGui(@Nonnull final MainFrame frame) {
+        mainGui = frame;
+    }
+
+    public static void disconnect(final int reason) {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                if (reason > 0) {
+                    JOptionPane.showMessageDialog(mainGui, "Disconnected from server.", "Disconnected", JOptionPane.ERROR_MESSAGE);
+                }
+                if (mainGui != null) {
+                    mainGui.dispose();
+                }
+            }
+        });
+    }
+
+    @Nonnull
+    public static Players getPlayers() {
+        if (players == null) {
+            throw new IllegalStateException("Requested player list before it was created");
+        }
+        return players;
     }
 
     /**

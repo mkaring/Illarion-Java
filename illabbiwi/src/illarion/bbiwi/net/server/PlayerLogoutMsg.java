@@ -18,11 +18,11 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.PlayerLogoutEvent;
+import illarion.bbiwi.BBIWI;
+import illarion.bbiwi.world.Player;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
 import illarion.common.types.CharacterId;
-import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -46,8 +46,8 @@ public final class PlayerLogoutMsg extends AbstractReply {
 
     @Override
     public boolean executeUpdate() {
-        // TODO: Forward this message to the GUI
-        EventServiceLocator.getSwingEventService().publish(new PlayerLogoutEvent(charId));
+        final Player player = BBIWI.getPlayers().getPlayer(charId);
+        player.setOnline(false);
         return true;
     }
 

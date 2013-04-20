@@ -19,41 +19,62 @@
 package illarion.bbiwi.gui;
 
 import illarion.bbiwi.BBIWI;
-import illarion.bbiwi.world.Players;
-import illarion.common.net.NetComm;
-import illarion.common.net.Server;
+import org.jdesktop.swingx.JXFrame;
 import org.jdesktop.swingx.JXList;
 import org.jdesktop.swingx.renderer.DefaultListRenderer;
 
-import javax.annotation.Nonnull;
 import javax.swing.*;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import javax.swing.event.MouseInputAdapter;
+import java.awt.event.*;
 
 /**
  * This is the main frame ob the BBIWI.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class MainFrame extends JFrame {
+public class MainFrame extends JXFrame {
     private final JXList playerList;
 
-    @Nonnull
-    private final Players players;
-
-    public MainFrame(final NetComm networkComm, final Server usedServer) {
+    public MainFrame() {
         super(BBIWI.APPLICATION + ' ' + BBIWI.VERSION);
 
-        players = new Players();
-
-        playerList = new JXList(players);
+        playerList = new JXList(new PlayerListModel());
         playerList.setCellRenderer(new DefaultListRenderer(new PlayerComponentProvider()));
         getContentPane().add(new JScrollPane(playerList));
+
+        final Action displayPlayerWindowAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                final int index = playerList.getSelectedIndex();
+
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (index >= 0) {
+                            new PlayerDetailsFrame(BBIWI.getPlayers().getOnlinePlayer(index)).setVisible(true);
+                        }
+                    }
+                });
+            }
+        };
+
+        final KeyStroke enterStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0);
+        playerList.getInputMap().put(enterStroke, enterStroke);
+        playerList.getActionMap().put(enterStroke, displayPlayerWindowAction);
+        playerList.addMouseListener(new MouseInputAdapter() {
+            @Override
+            public void mouseClicked(final MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    final ActionEvent event = new ActionEvent(playerList, ActionEvent.ACTION_PERFORMED, "");
+                    displayPlayerWindowAction.actionPerformed(event);
+                }
+            }
+        });
 
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(final WindowEvent e) {
-                networkComm.disconnect();
+                BBIWI.getConnectionMonitor().reportDisconnect(0);
                 dispose();
             }
         });

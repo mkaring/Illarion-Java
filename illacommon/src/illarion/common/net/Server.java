@@ -35,7 +35,12 @@ public enum Server {
     /**
      * The test server of Illarion. Testers and developers need a client that is allowed to connect to this server.
      */
-    TestServer("Test server", "Testserver", RealServer.serverAddress, 3012, 122, 200);
+    TestServer("Test server", "Testserver", "illarion.org", 3011, 122, 200),
+
+    /**
+     * The test server of Illarion. Testers and developers need a client that is allowed to connect to this server.
+     */
+    DevServer("Dev Server", "Dev-Server", "illarion.org", 3012, 122, 200);
 
     /**
      * The client version that needs to be transferred to the server so it accepts the connection and the client

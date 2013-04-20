@@ -18,10 +18,9 @@
  */
 package illarion.bbiwi.net.server;
 
-import illarion.bbiwi.events.LoginSuccessfulEvent;
+import illarion.bbiwi.BBIWI;
 import illarion.common.net.NetCommReader;
 import illarion.common.net.ReplyMessage;
-import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -46,7 +45,7 @@ public final class LoginSuccessfulMsg extends AbstractReply {
 
     @Override
     public boolean executeUpdate() {
-        EventServiceLocator.getSwingEventService().publish(new LoginSuccessfulEvent());
+        BBIWI.getConnectionMonitor().reportLoginSucess();
         return true;
     }
 }
