@@ -20,8 +20,11 @@ package illarion.bbiwi.gui;
 
 import illarion.bbiwi.BBIWI;
 import illarion.bbiwi.events.NewPlayerOnListEvent;
+import illarion.bbiwi.events.PlayerAttributeChangedEvent;
+import illarion.bbiwi.events.PlayerLocationChangedEvent;
 import illarion.bbiwi.events.RemovedPlayerFromListEvent;
 import illarion.bbiwi.world.Player;
+import illarion.common.data.CharacterAttribute;
 import org.bushe.swing.event.EventServiceLocator;
 import org.bushe.swing.event.annotation.AnnotationProcessor;
 import org.bushe.swing.event.annotation.EventSubscriber;
@@ -59,5 +62,21 @@ public class PlayerListModel extends AbstractListModel<Player> {
             eventServiceName = EventServiceLocator.SERVICE_NAME_SWING_EVENT_SERVICE)
     public void onRemovePlayerFromListEvent(@Nonnull final RemovedPlayerFromListEvent event) {
         fireIntervalRemoved(this, event.getIndex(), event.getIndex());
+    }
+
+    @EventSubscriber(eventClass = PlayerAttributeChangedEvent.class,
+            eventServiceName = EventServiceLocator.SERVICE_NAME_SWING_EVENT_SERVICE)
+    public void onPlayerAttributeChangedEvent(@Nonnull final PlayerAttributeChangedEvent event) {
+        if ((event.getIndex() >= 0) && (event.getAttribute() == CharacterAttribute.HitPoints)) {
+            fireContentsChanged(this, event.getIndex(), event.getIndex());
+        }
+    }
+
+    @EventSubscriber(eventClass = PlayerLocationChangedEvent.class,
+            eventServiceName = EventServiceLocator.SERVICE_NAME_SWING_EVENT_SERVICE)
+    public void onPlayerLocationChangedEvent(@Nonnull final PlayerLocationChangedEvent event) {
+        if (event.getIndex() >= 0) {
+            fireContentsChanged(this, event.getIndex(), event.getIndex());
+        }
     }
 }

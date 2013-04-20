@@ -34,7 +34,7 @@ public class PlayerListPanel extends JPanel {
     public PlayerListPanel() {
         super(new BorderLayout());
         nameLabel = new JLabel();
-        nameLabel.setFont(nameLabel.getFont().deriveFont(16.f));
+        nameLabel.setFont(nameLabel.getFont().deriveFont(nameLabel.getFont().getSize2D() + 2.f));
         hitPointsLabel = new JLabel();
         locationLabel = new JLabel();
 

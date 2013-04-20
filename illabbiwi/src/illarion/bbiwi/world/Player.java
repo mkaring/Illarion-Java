@@ -18,10 +18,14 @@
  */
 package illarion.bbiwi.world;
 
+import illarion.bbiwi.events.PlayerAttributeChangedEvent;
+import illarion.bbiwi.events.PlayerLocationChangedEvent;
+import illarion.bbiwi.events.PlayerSkillChangedEvent;
 import illarion.common.data.CharacterAttribute;
 import illarion.common.data.Skill;
 import illarion.common.types.CharacterId;
 import illarion.common.types.Location;
+import org.bushe.swing.event.EventServiceLocator;
 
 import javax.annotation.Nonnull;
 import java.util.EnumMap;
@@ -96,7 +100,14 @@ public class Player {
      * @param loc the new location
      */
     public void setLocation(@Nonnull final Location loc) {
+        final Location tempLocation = new Location(location);
         location.set(loc);
+
+        if (!isOnline()) {
+            return;
+        }
+
+        publish(new PlayerLocationChangedEvent(getIndex(), this, tempLocation, new Location(loc)));
     }
 
     /**
@@ -123,16 +134,46 @@ public class Player {
     }
 
     public void setSkill(@Nonnull final Skill skill, final int value) {
+        final int oldValue = getSkill(skill);
+
         skills.put(skill, value);
+
+        if (!isOnline()) {
+            return;
+        }
+
+        publish(new PlayerSkillChangedEvent(getIndex(), this, skill, oldValue, value));
+    }
+
+    private int getSkill(final Skill skill) {
+        if (skills.containsKey(skill)) {
+            return skills.get(skill);
+        }
+        return 0;
     }
 
     public void setAttribute(@Nonnull final CharacterAttribute attribute, final int value) {
+        final int oldValue = getAttribute(attribute);
         attributes.put(attribute, value);
+
+        if (!isOnline()) {
+            return;
+        }
+
+        publish(new PlayerAttributeChangedEvent(getIndex(), this, attribute, oldValue, value));
+    }
+
+    private static void publish(@Nonnull final Object event) {
+        EventServiceLocator.getSwingEventService().publish(event);
     }
 
     @Nonnull
     public String getName() {
         return name;
+    }
+
+    public int getIndex() {
+        return playerList.getPlayerIndex(this);
     }
 
     @Nonnull

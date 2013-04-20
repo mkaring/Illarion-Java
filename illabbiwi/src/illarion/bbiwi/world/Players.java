@@ -132,6 +132,16 @@ public final class Players {
     }
 
     /**
+     * Get the index of the player.
+     *
+     * @param player the player
+     * @return the index of the player in case the player is present in the online list, else any value below {@code 0}
+     */
+    public int getPlayerIndex(@Nonnull final Player player) {
+        return Collections.binarySearch(players, player, playerComparator);
+    }
+
+    /**
      * Add a player to the list of offline players.
      *
      * @param player the player to move to the list of offline players

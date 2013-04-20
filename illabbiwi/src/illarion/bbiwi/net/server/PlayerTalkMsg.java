@@ -66,8 +66,8 @@ public final class PlayerTalkMsg extends AbstractReply {
     @Override
     public void decode(@Nonnull final NetCommReader reader) throws IOException {
         charId = new CharacterId(reader);
-        message = reader.readString();
         messageType = reader.readUByte();
+        message = reader.readString();
     }
 
     @Override
