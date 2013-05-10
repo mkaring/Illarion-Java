@@ -132,7 +132,7 @@ public interface GameGui {
      * @return the mini map display control
      */
     @Nonnull
-    MiniMapGui getMiniMapGui();
+    OverviewMapGui getOverviewMapGui();
 
     /**
      * Check if the GUI is ready to work.

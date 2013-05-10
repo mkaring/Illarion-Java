@@ -22,18 +22,18 @@ import illarion.client.resources.data.ItemTemplate;
 import org.illarion.engine.nifty.IgeTextureRenderImage;
 
 /**
- * This implementation of a slick render image is used to show a image that is usually used in the game graphics,
+ * This implementation of a texture render image is used to show a image that is usually used in the game graphics,
  * inside the elements of the GUI.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class EntitySlickRenderImage extends IgeTextureRenderImage {
+public class EntityTextureRenderImage extends IgeTextureRenderImage {
     /**
      * Create this render image that refers to a specified entity.
      *
      * @param entity the entity the image refers to
      */
-    public EntitySlickRenderImage(final ItemTemplate entity) {
+    public EntityTextureRenderImage(final ItemTemplate entity) {
         super(entity.getGuiTexture());
     }
 }

@@ -20,7 +20,7 @@ package illarion.client.gui.util;
 
 import de.lessvoid.nifty.Nifty;
 import de.lessvoid.nifty.render.NiftyImage;
-import illarion.client.gui.EntitySlickRenderImage;
+import illarion.client.gui.EntityTextureRenderImage;
 import illarion.client.resources.ItemFactory;
 import illarion.client.world.items.MerchantItem;
 import org.illarion.nifty.controls.MerchantListEntry;
@@ -52,7 +52,7 @@ public final class NiftyMerchantItem extends MerchantItem implements MerchantLis
         super(org);
 
         itemImage = new NiftyImage(nifty.getRenderEngine(),
-                new EntitySlickRenderImage(ItemFactory.getInstance().getTemplate(org.getItemId().getValue())));
+                new EntityTextureRenderImage(ItemFactory.getInstance().getTemplate(org.getItemId().getValue())));
     }
 
     /**

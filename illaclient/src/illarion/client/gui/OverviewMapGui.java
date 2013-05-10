@@ -27,7 +27,7 @@ import javax.annotation.Nonnull;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public interface MiniMapGui {
+public interface OverviewMapGui {
     /**
      * This interface defines a pointer on the map that points towards a specified location.
      */
@@ -67,4 +67,14 @@ public interface MiniMapGui {
      * @param pointer the pointer to remove
      */
     void removePointer(@Nonnull Pointer pointer);
+
+    /**
+     * Show the world map window.
+     */
+    void showWorldMap();
+
+    /**
+     * Hide the world map window.
+     */
+    void hideWorldMap();
 }

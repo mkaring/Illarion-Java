@@ -165,8 +165,8 @@
             </control>
             <control id="worldMapWindow" name="window" style="nifty-window" title="${gamescreen-bundle.worldmap}"
                      hideOnClose="true" visible="true" height="90%" width="100%h" x="5%" y="5%">
-                <panel id="#mapContainer" width="100%" height="100%">
-
+                <panel id="#mapContainer" width="100%" height="100%" childLayout="center">
+                    <image id="#worldMapImage" width="100%h" height="100%"/>
                 </panel>
             </control>
             <control id="merchantDialog" name="dialog-merchant" width="500px" visible="false" hideOnClose="true"/>

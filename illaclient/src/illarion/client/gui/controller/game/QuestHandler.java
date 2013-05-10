@@ -31,7 +31,7 @@ import de.lessvoid.nifty.screen.ScreenController;
 import de.lessvoid.nifty.tools.SizeValue;
 import illarion.client.IllaClient;
 import illarion.client.graphics.FontLoader;
-import illarion.client.gui.MiniMapGui;
+import illarion.client.gui.OverviewMapGui;
 import illarion.client.gui.QuestGui;
 import illarion.client.input.InputReceiver;
 import illarion.client.net.server.events.LoginFinishedEvent;
@@ -242,14 +242,14 @@ public final class QuestHandler implements QuestGui, ScreenController {
      * The list of pointers that are active with the current quest.
      */
     @Nonnull
-    private final List<GameMiniMapHandler.Pointer> activePointers;
+    private final List<OverviewMapHandler.Pointer> activePointers;
 
     /**
      * Default constructor.
      */
     public QuestHandler() {
         hiddenList = new ArrayList<QuestEntry>();
-        activePointers = new ArrayList<MiniMapGui.Pointer>();
+        activePointers = new ArrayList<OverviewMapGui.Pointer>();
     }
 
     /**
@@ -340,10 +340,10 @@ public final class QuestHandler implements QuestGui, ScreenController {
             oldChildren.markForRemoval();
         }
 
-        final MiniMapGui miniMapGui = World.getGameGui().getMiniMapGui();
-        for (@Nonnull final GameMiniMapHandler.Pointer pointer : activePointers) {
-            miniMapGui.removePointer(pointer);
-            miniMapGui.releasePointer(pointer);
+        final OverviewMapGui overviewMapGui = World.getGameGui().getOverviewMapGui();
+        for (@Nonnull final OverviewMapHandler.Pointer pointer : activePointers) {
+            overviewMapGui.removePointer(pointer);
+            overviewMapGui.releasePointer(pointer);
         }
         activePointers.clear();
 
@@ -389,9 +389,9 @@ public final class QuestHandler implements QuestGui, ScreenController {
 
         for (int i = 0; i < selectedEntry.getTargetLocationCount(); i++) {
             final Location target = selectedEntry.getTargetLocation(i);
-            final MiniMapGui.Pointer newPointer = miniMapGui.createPointer();
+            final OverviewMapGui.Pointer newPointer = overviewMapGui.createPointer();
             newPointer.setTarget(target);
-            miniMapGui.addPointer(newPointer);
+            overviewMapGui.addPointer(newPointer);
             activePointers.add(newPointer);
         }
     }

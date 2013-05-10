@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with the Illarion Game Engine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.illarion.engine.nifty;
+package illarion.client.gui.controller.game;
 
 import illarion.common.types.Location;
 import org.illarion.engine.Engine;
@@ -25,6 +25,7 @@ import org.illarion.engine.graphic.Color;
 import org.illarion.engine.graphic.Graphics;
 import org.illarion.engine.graphic.WorldMap;
 import org.illarion.engine.graphic.effects.MiniMapEffect;
+import org.illarion.engine.nifty.IgeRenderImage;
 
 import javax.annotation.Nonnull;
 
@@ -33,7 +34,7 @@ import javax.annotation.Nonnull;
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public class IgeMiniMapRenderImage implements IgeRenderImage {
+public class MiniMapRenderImage implements IgeRenderImage {
     /**
      * The world map that supplies the data to this render image.
      */
@@ -57,8 +58,8 @@ public class IgeMiniMapRenderImage implements IgeRenderImage {
      * @param radius the radius of the mini map
      * @throws EngineException in case the creation of this image fails for any reason
      */
-    public IgeMiniMapRenderImage(@Nonnull final Engine engine, @Nonnull final WorldMap map,
-                                 final int radius) throws EngineException {
+    public MiniMapRenderImage(@Nonnull final Engine engine, @Nonnull final WorldMap map,
+                              final int radius) throws EngineException {
         this.map = map;
         this.radius = radius;
         effect = engine.getAssets().getEffectManager().getMiniMapEffect(map, false);

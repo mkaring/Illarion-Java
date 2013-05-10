@@ -22,6 +22,7 @@ import de.lessvoid.nifty.EndNotify;
 import de.lessvoid.nifty.Nifty;
 import de.lessvoid.nifty.builder.ElementBuilder;
 import de.lessvoid.nifty.builder.ImageBuilder;
+import de.lessvoid.nifty.controls.Window;
 import de.lessvoid.nifty.elements.Element;
 import de.lessvoid.nifty.elements.render.ImageRenderer;
 import de.lessvoid.nifty.render.NiftyImage;
@@ -29,7 +30,7 @@ import de.lessvoid.nifty.screen.Screen;
 import de.lessvoid.nifty.screen.ScreenController;
 import de.lessvoid.nifty.tools.SizeValue;
 import illarion.client.graphics.AnimationUtility;
-import illarion.client.gui.MiniMapGui;
+import illarion.client.gui.OverviewMapGui;
 import illarion.client.resources.MiscImageFactory;
 import illarion.client.world.World;
 import illarion.common.types.Location;
@@ -46,12 +47,13 @@ import java.util.List;
 import java.util.Queue;
 
 /**
- * This class is the GUI control of the mini map. It takes care of all the required interaction with the mini map
- * GUI, however it does not draw the mini map itself. It just displays the already drawn mini map on the GUI.
+ * This class is the GUI control of the mini map and the world map. It takes care of all the required interaction with
+ * the mini map and the world map GUI, however it does not draw the overview map itself. It just displays the already
+ * drawn map on the GUI.
  *
  * @author Martin Karing &lt;nitram@illarion.org&gt;
  */
-public final class GameMiniMapHandler implements MiniMapGui, ScreenController, UpdatableHandler {
+public final class OverviewMapHandler implements OverviewMapGui, ScreenController, UpdatableHandler {
     /**
      * This is the implementation of the pointers. This class is the image that is displayed on the GUI in order to
      * show the arrow on the mini map. It takes care for rendering it with the proper rotation applied.
@@ -260,6 +262,16 @@ public final class GameMiniMapHandler implements MiniMapGui, ScreenController, U
     private Element miniMapPanel;
 
     /**
+     * The window that shows the world map.
+     */
+    private Window worldMapWindow;
+
+    /**
+     * Get the panel that shows the world map.
+     */
+    private Element worldMapPanel;
+
+    /**
      * The buffer that stores the currently not used instances of the mini map arrows.
      */
     @Nonnull
@@ -274,7 +286,7 @@ public final class GameMiniMapHandler implements MiniMapGui, ScreenController, U
     /**
      * Create a new game mini map handler.
      */
-    public GameMiniMapHandler() {
+    public OverviewMapHandler() {
         buffer = new LinkedList<MapArrowPointer>();
         activePointers = new LinkedList<MapArrowPointer>();
     }
@@ -288,6 +300,11 @@ public final class GameMiniMapHandler implements MiniMapGui, ScreenController, U
 
         miniMapPanel.findElementById("miniMapImage").getRenderer(ImageRenderer.class).setImage(
                 new NiftyImage(nifty.getRenderEngine(), World.getMap().getMinimap().getMiniMap()));
+
+        worldMapWindow = screen.findNiftyControl("worldMapWindow", Window.class);
+        worldMapPanel = worldMapWindow.getElement().findElementById("#mapContainer");
+        worldMapPanel.findElementById("#worldMapImage").getRenderer(ImageRenderer.class).setImage(
+                new NiftyImage(nifty.getRenderEngine(), World.getMap().getMinimap().getWorldMap()));
     }
 
     @Override
@@ -347,6 +364,27 @@ public final class GameMiniMapHandler implements MiniMapGui, ScreenController, U
             final MapArrowPointer arrowPointer = (MapArrowPointer) pointer;
             activePointers.remove(arrowPointer);
             arrowPointer.getParentElement().hide();
+        }
+    }
+
+    @Override
+    public void showWorldMap() {
+        if (worldMapWindow.getElement().isVisible()) {
+            worldMapWindow.moveToFront();
+        } else {
+            worldMapWindow.getElement().show(new EndNotify() {
+                @Override
+                public void perform() {
+                    worldMapWindow.moveToFront();
+                }
+            });
+        }
+    }
+
+    @Override
+    public void hideWorldMap() {
+        if (worldMapWindow.getElement().isVisible()) {
+            worldMapWindow.closeWindow();
         }
     }
 

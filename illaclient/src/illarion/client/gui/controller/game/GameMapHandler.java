@@ -30,7 +30,7 @@ import de.lessvoid.nifty.screen.ScreenController;
 import de.lessvoid.nifty.tools.SizeValue;
 import illarion.client.graphics.Camera;
 import illarion.client.graphics.Item;
-import illarion.client.gui.EntitySlickRenderImage;
+import illarion.client.gui.EntityTextureRenderImage;
 import illarion.client.gui.GameMapGui;
 import illarion.client.gui.Tooltip;
 import illarion.client.input.*;
@@ -247,7 +247,7 @@ public final class GameMapHandler implements GameMapGui, ScreenController {
             draggedImage.setHeight(height);
 
             final ImageRenderer imgRender = draggedImage.getRenderer(ImageRenderer.class);
-            imgRender.setImage(new NiftyImage(activeNifty.getRenderEngine(), new EntitySlickRenderImage(movedItem.getTemplate())));
+            imgRender.setImage(new NiftyImage(activeNifty.getRenderEngine(), new EntityTextureRenderImage(movedItem.getTemplate())));
 
             gamePanel.layoutElements();
             input.disableForwarding(ForwardingTarget.Mouse);

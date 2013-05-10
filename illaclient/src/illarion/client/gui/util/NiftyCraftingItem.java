@@ -20,7 +20,7 @@ package illarion.client.gui.util;
 
 import de.lessvoid.nifty.Nifty;
 import de.lessvoid.nifty.render.NiftyImage;
-import illarion.client.gui.EntitySlickRenderImage;
+import illarion.client.gui.EntityTextureRenderImage;
 import illarion.client.resources.ItemFactory;
 import illarion.client.world.items.CraftingItem;
 import illarion.common.types.ItemCount;
@@ -46,12 +46,12 @@ public class NiftyCraftingItem extends CraftingItem implements CraftingItemEntry
         super(org);
 
         craftImage = new NiftyImage(nifty.getRenderEngine(),
-                new EntitySlickRenderImage(ItemFactory.getInstance().getTemplate(getItemId().getValue())));
+                new EntityTextureRenderImage(ItemFactory.getInstance().getTemplate(getItemId().getValue())));
 
         ingredientImages = new NiftyImage[getIngredientCount()];
         for (int i = 0; i < ingredientImages.length; i++) {
             ingredientImages[i] = new NiftyImage(nifty.getRenderEngine(),
-                    new EntitySlickRenderImage(ItemFactory.getInstance().getTemplate(getIngredientItemId(i).getValue())));
+                    new EntityTextureRenderImage(ItemFactory.getInstance().getTemplate(getIngredientItemId(i).getValue())));
         }
     }
 

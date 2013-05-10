@@ -18,6 +18,8 @@
  */
 package illarion.client.world;
 
+import illarion.client.gui.controller.game.MiniMapRenderImage;
+import illarion.client.gui.controller.game.WorldMapRenderImage;
 import illarion.client.net.server.TileUpdate;
 import illarion.client.resources.TileFactory;
 import illarion.common.graphics.TileInfo;
@@ -29,7 +31,6 @@ import org.illarion.engine.GameContainer;
 import org.illarion.engine.graphic.WorldMap;
 import org.illarion.engine.graphic.WorldMapDataProvider;
 import org.illarion.engine.graphic.WorldMapDataProviderCallback;
-import org.illarion.engine.nifty.IgeMiniMapRenderImage;
 import org.illarion.engine.nifty.IgeRenderImage;
 
 import javax.annotation.Nonnull;
@@ -133,11 +134,18 @@ public final class GameMiniMap implements WorldMapDataProvider {
     private final IgeRenderImage miniMapImage;
 
     /**
+     * The image of the world map as its rendered by the Nifty-GUI.
+     */
+    @Nonnull
+    private final IgeRenderImage worldMapImage;
+
+    /**
      * Constructor of the game map that sets up all instance variables.
      */
     public GameMiniMap(@Nonnull final Engine engine) throws EngineException {
         worldMap = engine.getAssets().createWorldMap(this);
-        miniMapImage = new IgeMiniMapRenderImage(engine, worldMap, MINI_RADIUS);
+        miniMapImage = new MiniMapRenderImage(engine, worldMap, MINI_RADIUS);
+        worldMapImage = new WorldMapRenderImage(worldMap);
 
         mapData = ByteBuffer.allocate(WorldMap.WORLD_MAP_WIDTH * WorldMap.WORLD_MAP_HEIGHT * BYTES_PER_TILE);
         mapData.order(ByteOrder.nativeOrder());
@@ -185,6 +193,16 @@ public final class GameMiniMap implements WorldMapDataProvider {
     @Nonnull
     public IgeRenderImage getMiniMap() {
         return miniMapImage;
+    }
+
+    /**
+     * Get the render image used to display the world map.
+     *
+     * @return the render image used to display the world map
+     */
+    @Nonnull
+    public IgeRenderImage getWorldMap() {
+        return worldMapImage;
     }
 
     /**

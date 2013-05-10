@@ -33,7 +33,7 @@ import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.procedure.TIntObjectProcedure;
 import illarion.client.IllaClient;
 import illarion.client.gui.ContainerGui;
-import illarion.client.gui.EntitySlickRenderImage;
+import illarion.client.gui.EntityTextureRenderImage;
 import illarion.client.gui.Tooltip;
 import illarion.client.net.client.CloseShowcaseCmd;
 import illarion.client.net.server.events.DialogMerchantReceivedEvent;
@@ -631,7 +631,7 @@ public final class ContainerHandler implements ContainerGui, ScreenController {
                 final ItemTemplate displayedItem = ItemFactory.getInstance().getTemplate(itemId.getValue());
 
                 final NiftyImage niftyImage = new NiftyImage(activeNifty.getRenderEngine(),
-                        new EntitySlickRenderImage(displayedItem));
+                        new EntityTextureRenderImage(displayedItem));
 
                 conSlot.setImage(niftyImage);
                 conSlot.setLabelText(count.getShortText(Lang.getInstance().getLocale()));

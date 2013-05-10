@@ -31,7 +31,7 @@ import de.lessvoid.nifty.screen.Screen;
 import de.lessvoid.nifty.screen.ScreenController;
 import de.lessvoid.nifty.tools.SizeValue;
 import illarion.client.IllaClient;
-import illarion.client.gui.EntitySlickRenderImage;
+import illarion.client.gui.EntityTextureRenderImage;
 import illarion.client.gui.InventoryGui;
 import illarion.client.gui.Tooltip;
 import illarion.client.input.InputReceiver;
@@ -476,7 +476,7 @@ public final class GUIInventoryHandler implements InventoryGui, ScreenController
             final ItemTemplate displayedItem = ItemFactory.getInstance().getTemplate(itemId.getValue());
 
             final NiftyImage niftyImage = new NiftyImage(activeNifty.getRenderEngine(),
-                    new EntitySlickRenderImage(displayedItem));
+                    new EntityTextureRenderImage(displayedItem));
 
             invSlot.setImage(niftyImage);
             if (ItemCount.isGreaterOne(count)) {
