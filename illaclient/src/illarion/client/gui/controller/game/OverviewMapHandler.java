@@ -202,7 +202,6 @@ public final class OverviewMapHandler implements OverviewMapGui, ScreenControlle
                 currentDeltaX = dX;
                 currentDeltaY = dY;
 
-                System.out.println("New dX: " + dX + " New dY: " + dY);
                 targetAngle = ((Math.round(getAngle() * 10.f) % 3600) + 3600) % 3600;
             }
 
