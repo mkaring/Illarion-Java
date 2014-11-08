@@ -266,23 +266,11 @@ final class Receiver extends Thread implements NetCommReader {
                         }
 
                         // identify command
+                        readUByte(); // the ID for the account/game commands
                         int id = readUByte();
-                        int xor = readUByte();
 
-                        // valid command id
-                        if (id != (xor ^ COMMAND_XOR_MASK)) {
-                            // delete only first byte from buffer, scanning for valid command
-                            buffer.position(1);
-                            buffer.compact();
-
-                            LOGGER.warn("Skipping invalid data [{}]", id);
-
-                            continue;
-                        }
-
-                        // read length and CRC
+                        // read length
                         int len = readUShort();
-                        int crc = readUShort();
 
                         // wait for complete data
                         if (!isDataComplete(len)) {
@@ -293,20 +281,6 @@ final class Receiver extends Thread implements NetCommReader {
                         }
 
                         minRequiredData = CommandList.HEADER_SIZE;
-
-                        // check CRC
-                        if (crc != NetComm.getCRC(buffer, len)) {
-                            int oldLimit = buffer.limit();
-                            buffer.limit(len + CommandList.HEADER_SIZE);
-                            buffer.position(CommandList.HEADER_SIZE);
-                            NetComm.dump("Invalid CRC ", buffer);
-
-                            buffer.position(1);
-                            buffer.limit(oldLimit);
-                            buffer.compact();
-                            buffer.flip();
-                            continue;
-                        }
 
                         // decode
                         try {
@@ -334,14 +308,14 @@ final class Receiver extends Thread implements NetCommReader {
             } catch (@Nonnull IOException e) {
                 if (running) {
                     LOGGER.error("The connection to the server is not working anymore.", e);
-                    IllaClient.sendDisconnectEvent(Lang.getMsg("error.receiver"));
+                    IllaClient.sendDisconnectEvent(Lang.getMsg("error.receiver"), true);
                     running = false;
                     return;
                 }
             } catch (@Nonnull Exception e) {
                 if (running) {
                     LOGGER.error("General error in the receiver", e);
-                    IllaClient.sendDisconnectEvent(Lang.getMsg("error.receiver"));
+                    IllaClient.sendDisconnectEvent(Lang.getMsg("error.receiver"), true);
                     running = false;
                     return;
                 }

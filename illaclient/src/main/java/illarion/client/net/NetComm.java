@@ -127,30 +127,6 @@ public final class NetComm {
     }
 
     /**
-     * New version of the checksum calculation. All bytes from the current position of the buffer to the limit are
-     * included to the calculation. The limit, mark and position is restored by this function. So the ByteBuffer is
-     * unchanged after the function leaves.
-     *
-     * @param buffer the byte buffer that provides the byte data
-     * @param len the amount of byte that shall be included to the checksum calculation
-     * @return the calculated checksum
-     */
-    public static int getCRC(@Nonnull ByteBuffer buffer, int len) {
-        int crc = 0;
-        int remain = len;
-        int pos = buffer.position();
-        while (buffer.hasRemaining() && (remain-- > 0)) {
-            byte data = buffer.get();
-            crc += data;
-            if (data < 0) {
-                crc += 1 << Byte.SIZE;
-            }
-        }
-        buffer.position(pos);
-        return crc % ((1 << Short.SIZE) - 1);
-    }
-
-    /**
      * This function has only debug purposes and is used to print the contents of a buffer to the output log. This is
      * used for the debug output when debugging the protocol. The bytes that are written are all remaining bytes of
      * the buffer. Also the position of the buffer with point at the end after this function was called.

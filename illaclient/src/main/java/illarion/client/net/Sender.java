@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -101,6 +102,7 @@ final class Sender implements NetCommWriter {
 
     void sendCommand(@Nonnull final AbstractCommand cmd) {
         commandExecutor.submit(new Callable<Void>() {
+            @Nullable
             @Override
             public Void call() throws Exception {
                 try {
@@ -119,12 +121,11 @@ final class Sender implements NetCommWriter {
         }
 
         buffer.clear();
+        buffer.put((byte) 1);
         buffer.put((byte) cmd.getId());
-        buffer.put((byte) (cmd.getId() ^ COMMAND_XOR_MASK));
 
-        // keep some space for the length and the CRC
-        int headerLenCRC = buffer.position();
-        buffer.putShort((short) 0);
+        // keep some space for the length
+        int headerLen = buffer.position();
         buffer.putShort((short) 0);
 
         int startOfCmd = buffer.position();
@@ -133,11 +134,8 @@ final class Sender implements NetCommWriter {
 
         int length = buffer.position() - startOfCmd;
         buffer.flip();
-        buffer.position(startOfCmd);
-        int crc = NetComm.getCRC(buffer, length);
-        buffer.position(headerLenCRC);
+        buffer.position(headerLen);
         buffer.putShort((short) length);
-        buffer.putShort((short) crc);
         buffer.position(0);
 
         if (IllaClient.isDebug(Debug.net)) {

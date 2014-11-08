@@ -491,7 +491,7 @@ public final class CommandList {
     /**
      * The default size of the header of each command and each message in byte.
      */
-    protected static final int HEADER_SIZE = 6;
+    protected static final int HEADER_SIZE = 4;
 
     /**
      * Private constructor of the class so nothing can create a instance of this utility class.
