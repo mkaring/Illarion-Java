@@ -18,6 +18,7 @@ package illarion.client.net;
 import illarion.client.Debug;
 import illarion.client.IllaClient;
 import illarion.client.net.client.AbstractCommand;
+import illarion.client.util.Lang;
 import illarion.common.net.NetCommWriter;
 import illarion.common.types.Location;
 import org.slf4j.Logger;
@@ -107,8 +108,15 @@ final class Sender implements NetCommWriter {
             public Void call() throws Exception {
                 try {
                     encodeCommand(cmd);
+                } catch (@Nonnull IOException e) {
+                    log.error("Problem with connection while sending: {}", cmd, e);
+                    /*Sending more commands is pointless because the outgoing channel caused a problem.
+                      void the remaining tasks to be executed (they only throw exceptions anyway)
+                      And notify the rest of the client about the problem.*/
+                    commandExecutor.shutdownNow();
+                    IllaClient.sendDisconnectEvent(Lang.getMsg("error.sender"), true);
                 } catch (Exception e) {
-                    log.error("Error while sending command.", e);
+                    log.error("Unexpected error while encoding the command: {}", cmd, e);
                 }
                 return null;
             }
@@ -118,6 +126,10 @@ final class Sender implements NetCommWriter {
     private void encodeCommand(@Nonnull AbstractCommand cmd) throws IOException {
         if (cmd.getId() != CommandList.CMD_KEEPALIVE) {
             log.debug("SND: {}", cmd);
+        }
+
+        if (!outChannel.isOpen()) {
+            throw new IOException("Output channel is not open for sending.");
         }
 
         buffer.clear();
